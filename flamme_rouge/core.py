@@ -1,9 +1,15 @@
-#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 ''' core classes '''
 
+import logging
+
 from collections import deque
 from random import choice, shuffle
+
+from .utils import window
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Section:
@@ -16,58 +22,156 @@ class Section:
         self.min_speed = min_speed
         self.max_speed = max_speed
 
-        self._riders = deque(maxlen=lanes)
+        self._cyclists = deque(maxlen=lanes)
+
+    @property
+    def cyclists(self):
+        ''' cyclists '''
+
+        return tuple(self._cyclists)
 
     def empty(self):
         ''' true if section is empty '''
 
-        return not self._riders
+        return not self._cyclists
 
     def full(self):
         ''' true if section is filled to capacity '''
 
-        return len(self._riders) >= self.lanes
+        return len(self._cyclists) >= self.lanes
 
-    def add_rider(self, rider):
+    def add_cyclist(self, cyclist):
         ''' add a rider to the section '''
 
         if self.full():
             return False
-        self._riders.append(rider)
+        self._cyclists.append(cyclist)
         return True
 
-    # def remove_rider(self, rider):
-    #     pass
+    def remove_cyclist(self, cyclist):
+        ''' remove a rider from this section '''
+
+        try:
+            self._cyclists.remove(cyclist)
+            return True
+        except ValueError:
+            pass
+        return False
 
 
-class Rider:
+class Track:
+    ''' track '''
+
+    def __init__(self, sections, start=4, finish=-5):
+        self.sections = tuple(sections)
+        self.start = start
+        self.finish = finish if finish > 0 else len(self) + finish
+
+    def __len__(self):
+        return len(self.sections)
+
+    def __iter__(self):
+        return iter(self.sections)
+
+    def cyclists(self):
+        ''' generator of riders from first to last '''
+
+        for section in reversed(self.sections):
+            yield from section.cyclists
+
+    def _move_cyclist(self, cyclist, value, start):
+        min_speed = self.sections[start].min_speed
+        value = value if min_speed is None else max(value, min_speed)
+
+        for i, section in enumerate(self.sections[start:start + value + 1]):
+            max_speed = section.max_speed
+            if max_speed is None:
+                continue
+            if i > max_speed:
+                value = i - 1
+                break
+            value = min(value, max_speed)
+
+        for pos in range(min(start + value, len(self) - 1), start, -1):
+            section = self.sections[pos]
+            if section.add_cyclist(cyclist):
+                return pos
+
+        return start
+
+    def move_cyclist(self, cyclist, value):
+        ''' move cyclists '''
+
+        for pos, section in enumerate(self.sections):
+            if cyclist not in section.cyclists:
+                continue
+            end = self._move_cyclist(cyclist, value, pos)
+            if pos != end:
+                section.remove_cyclist(cyclist)
+
+    def do_slipstream(self):
+        ''' move cyclists through slipstream '''
+
+        while True:
+            for sec in window(self.sections, 3):
+                if (all(s.slipstream for s in sec)
+                        and sec[0].cyclists and sec[1].empty() and sec[2].cyclists):
+                    for cyclist in sec[0].cyclists:
+                        self.move_cyclist(cyclist, 1)
+                    break # start over to move cyclists at the end of the pack
+            else:
+                return # all slipstreams done
+
+    def do_exhaustion(self):
+        ''' add exhaustion cards '''
+
+        for sec0, sec1 in window(self.sections, 2):
+            if sec1.empty():
+                for cyclist in sec0.cyclists:
+                    cyclist.discard(2)
+
+    def finished(self):
+        ''' game finished '''
+
+        return any(not section.empty() for section in self.sections[self.finish:])
+
+
+class Cyclist:
     ''' rider or cyclist '''
 
     hand = None
+    curr_card = None
 
     def __init__(self, deck):
         self.deck = list(deck)
         shuffle(self.deck)
         self.discard_pile = []
-        self.draw_hand()
 
     def _draw(self):
         if not self.deck:
             self.deck = self.discard_pile
             self.discard_pile = []
             shuffle(self.deck)
-        return self.deck.pop(choice(range(len(self.deck))))
+        return self.deck.pop(choice(range(len(self.deck)))) if self.deck else None
 
     def draw_hand(self, size=4):
         ''' draw a new hand '''
 
         self.discard_hand()
-        self.hand = [self._draw() for _ in range(size)]
+        self.hand = [self._draw() for card in range(size) if card is not None]
 
     def select_card(self, value):
         ''' select a card from hand '''
 
-        return self.hand.remove(value)
+        try:
+            self.hand.remove(value)
+            self.curr_card = value
+            return True
+
+        except ValueError as exc:
+            LOGGER.exception(exc)
+
+        return False
 
     def discard(self, value):
         ''' add a card to the discard pile '''
@@ -82,15 +186,80 @@ class Rider:
         self.hand = None
 
 
-class Rouleur(Rider):
+class Rouleur(Cyclist):
     ''' rouleur '''
 
     def __init__(self):
         super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7))
 
 
-class Sprinteur(Rider):
+class Sprinteur(Cyclist):
     ''' sprinteur '''
 
     def __init__(self):
         super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9))
+
+
+class Team:
+    ''' team '''
+
+    def __init__(self, cyclists, strategy=None):
+        self.cyclists = cyclists
+        self.strategy = strategy
+
+
+class Strategy:
+    ''' strategy '''
+
+    #pylint: disable=no-self-use,unused-argument
+    def next_cyclist(self, team, game=None):
+        ''' select the next cyclist '''
+
+        available = [cyclist for cyclist in team.cyclist if cyclist.curr_card is None]
+        return choice(available) if available else None
+
+    def cyclists(self, team, game=None):
+        ''' generator of cyclists in order '''
+
+        while True:
+            cyclist = self.next_cyclist(team, game)
+            if cyclist is None:
+                return
+            yield cyclist
+
+    #pylint: disable=no-self-use,unused-argument
+    def choose_card(self, cyclist, team=None, game=None):
+        ''' choose card '''
+
+        return choice(cyclist.hand) if cyclist.hand else None
+
+
+class FRGame:
+    ''' Flamme Rouge game '''
+
+    def __init__(self, track, teams):
+        self.track = track
+        self.teams = tuple(teams)
+
+    def play_round(self):
+        ''' play a round '''
+
+        for team in self.teams:
+            for cyclist in team.strategy.cyclists(team, self):
+                cyclist.draw_hand()
+                card = team.strategy.choose_card(cyclist, team, self)
+                cyclist.select_card(card)
+                cyclist.discard_hand()
+
+        for cyclist in self.track.cyclists():
+            self.track.move_cylist(cyclist, cyclist.curr_card)
+            cyclist.curr_card = None
+
+        self.track.do_slipstream()
+        self.track.do_exhaustion()
+
+    def play(self):
+        ''' play the game '''
+
+        while not self.track.finished():
+            self.play_round()
