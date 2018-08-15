@@ -12,8 +12,12 @@ from .utils import window
 LOGGER = logging.getLogger(__name__)
 
 
+EXHAUSTION_CARD = 2
+
 class Section:
     ''' section on the track '''
+
+    LANE_STR_WIDTH = 20
 
     def __init__(self, position, lanes=2, slipstream=True, min_speed=None, max_speed=None):
         self.position = position
@@ -57,6 +61,29 @@ class Section:
         except ValueError:
             pass
         return False
+
+    def __str__(self):
+        total = (self.LANE_STR_WIDTH + 1) * self.lanes - 1
+        left = (total - 5) // 2
+        right = total - left - 5
+        top = '+' + '-' * left + ' {:3d} '.format(self.position) + '-' * right + '+'
+        if self.slipstream:
+            top += ' S'
+
+        lane_str = ' {{:{:d}s}} '.format(self.LANE_STR_WIDTH - 2)
+        cyclists = self.cyclists
+        cyclists += ('',) * (self.lanes - len(self._cyclists))
+        cyclists = tuple(
+            lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
+        middle = '|'.join(('',) + cyclists + ('',))
+        if self.min_speed is not None:
+            middle = '{:s} ≤{:d}'.format(middle, self.min_speed)
+
+        bottom = '+' + '-' * total + '+'
+        if self.max_speed is not None:
+            bottom = '{:s} ≥{:d}'.format(bottom, self.max_speed)
+
+        return '\n'.join((top, middle, bottom))
 
 
 class Track:
@@ -128,12 +155,15 @@ class Track:
         for sec0, sec1 in window(self.sections, 2):
             if sec1.empty():
                 for cyclist in sec0.cyclists:
-                    cyclist.discard(2)
+                    cyclist.discard(EXHAUSTION_CARD)
 
     def finished(self):
         ''' game finished '''
 
         return any(not section.empty() for section in self.sections[self.finish:])
+
+    def __str__(self):
+        return '\n'.join(map(str, self.sections))
 
 
 class Cyclist:
@@ -142,10 +172,11 @@ class Cyclist:
     hand = None
     curr_card = None
 
-    def __init__(self, deck):
+    def __init__(self, deck, team=None):
         self.deck = list(deck)
         shuffle(self.deck)
         self.discard_pile = []
+        self.team = team
 
     def _draw(self):
         if not self.deck:
@@ -158,7 +189,9 @@ class Cyclist:
         ''' draw a new hand '''
 
         self.discard_hand()
-        self.hand = [self._draw() for card in range(size) if card is not None]
+        self.hand = list(filter(None, (self._draw() for _ in range(size))))
+        if not self.hand:
+            self.hand = [EXHAUSTION_CARD]
 
     def select_card(self, value):
         ''' select a card from hand '''
@@ -185,6 +218,11 @@ class Cyclist:
             self.discard_pile.extend(self.hand)
         self.hand = None
 
+    def __str__(self):
+        if self.team is None:
+            return self.__class__.__name__
+        return '{:s} ({:s})'.format(self.__class__.__name__, self.team)
+
 
 class Rouleur(Cyclist):
     ''' rouleur '''
@@ -203,9 +241,13 @@ class Sprinteur(Cyclist):
 class Team:
     ''' team '''
 
-    def __init__(self, cyclists, strategy=None):
+    def __init__(self, name, cyclists, strategy=None):
+        self.name = name
         self.cyclists = cyclists
         self.strategy = strategy
+
+    def __str__(self):
+        return self.name
 
 
 class Strategy:
@@ -263,3 +305,6 @@ class FRGame:
 
         while not self.track.finished():
             self.play_round()
+
+    def __str__(self):
+        return str(self.track)
