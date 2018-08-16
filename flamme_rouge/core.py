@@ -175,7 +175,9 @@ class Track:
         return any(not section.empty() for section in self.sections[self.finish:])
 
     def __str__(self):
-        return '\n'.join(map(str, self.sections))
+        total = (Section.LANE_STR_WIDTH + 1) * 2 + 1
+        sections = self.sections[:self.finish] + ('#' * total,) + self.sections[self.finish:]
+        return '\n'.join(map(str, sections))
 
 
 class Cyclist:
