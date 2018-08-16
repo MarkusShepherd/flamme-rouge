@@ -11,8 +11,8 @@ from .utils import window
 
 LOGGER = logging.getLogger(__name__)
 
-
 EXHAUSTION_CARD = 2
+
 
 class Section:
     ''' section on the track '''

@@ -7,12 +7,13 @@ import logging
 import sys
 
 from .core import FRGame, Rouleur, Section, Sprinteur, Strategy, Team, Track
+from .strategies import Human
 
 LOGGER = logging.getLogger(__name__)
 
 def _main():
     logging.basicConfig(
-        stream=sys.stdout,
+        stream=sys.stderr,
         level=logging.INFO,
         format='%(asctime)s %(levelname)-8.8s [%(name)s:%(lineno)s] %(message)s'
     )
@@ -28,7 +29,11 @@ def _main():
     for name in names:
         sprinteur = Sprinteur()
         rouleur = Rouleur()
-        team = Team(name=name, cyclists=(sprinteur, rouleur), strategy=strategy)
+        team = Team(
+            name=name,
+            cyclists=(sprinteur, rouleur),
+            strategy=Human() if name == 'blue' else strategy,
+        )
         sprinteur.team = team
         rouleur.team = team
         teams.append(team)
