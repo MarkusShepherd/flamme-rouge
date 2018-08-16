@@ -6,8 +6,9 @@
 import logging
 import sys
 
-from .core import FRGame, Rouleur, Section, Sprinteur, Strategy, Team, Track
+from .core import FRGame, Rouleur, Sprinteur, Strategy, Team
 from .strategies import Human
+from .tracks import FIRENZE_MILANO
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,10 +18,6 @@ def _main():
         level=logging.INFO,
         format='%(asctime)s %(levelname)-8.8s [%(name)s:%(lineno)s] %(message)s'
     )
-
-    length = 9 * 6 + 12 * 2
-    sections = map(Section, range(length))
-    track = Track(sections)
 
     names = ('red', 'blue', 'green', 'black')
     teams = []
@@ -40,7 +37,7 @@ def _main():
 
         LOGGER.info('Team <%s> with members <%s> and <%s>', team, sprinteur, rouleur)
 
-    game = FRGame(track, teams)
+    game = FRGame(AVENUE_CORSO_PASEO, teams)
     game.play()
 
     LOGGER.info('winner: %s', game.track.leading())

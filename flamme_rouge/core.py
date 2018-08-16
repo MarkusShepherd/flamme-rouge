@@ -3,15 +3,17 @@
 ''' core classes '''
 
 import logging
+import re
 
 from collections import deque
 from random import choice, shuffle
 
-from .utils import window
+from .utils import class_from_path, window
 
 LOGGER = logging.getLogger(__name__)
 
 EXHAUSTION_CARD = 2
+CLASS_REGEX = re.compile(r'[^\w.]+')
 
 
 class Section:
@@ -76,20 +78,34 @@ class Section:
         cyclists = tuple(
             lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
         middle = '|'.join(('',) + cyclists + ('',))
-        if self.min_speed is not None:
-            middle = '{:s} ≤{:d}'.format(middle, self.min_speed)
+        if self.max_speed is not None:
+            middle = '{:s} ≤{:d}'.format(middle, self.max_speed)
 
         bottom = '+' + '-' * total + '+'
-        if self.max_speed is not None:
-            bottom = '{:s} ≥{:d}'.format(bottom, self.max_speed)
+        if self.min_speed is not None:
+            bottom = '{:s} ≥{:d}'.format(bottom, self.min_speed)
 
         return '\n'.join((top, middle, bottom))
+
+
+class MountainUp(Section):
+    ''' up section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, slipstream=False, max_speed=5)
+
+
+class MountainDown(Section):
+    ''' down section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, min_speed=5)
 
 
 class Track:
     ''' track '''
 
-    def __init__(self, sections, start=4, finish=-5):
+    def __init__(self, sections, start=5, finish=-5):
         self.sections = tuple(sections)
         self.start = start
         self.finish = finish if finish > 0 else len(self) + finish
@@ -169,15 +185,36 @@ class Track:
 
         return None
 
+    def non_empty(self):
+        ''' non-empty sections '''
+
+        for section in self.sections:
+            if not section.empty():
+                yield section
+
     def finished(self):
         ''' game finished '''
 
         return any(not section.empty() for section in self.sections[self.finish:])
 
     def __str__(self):
+        start = next(self.non_empty(), None)
+        start = start.position - 1 if start is not None and start.position else 0
+        finish = max(start, self.finish)
         total = (Section.LANE_STR_WIDTH + 1) * 2 + 1
-        sections = self.sections[:self.finish] + ('#' * total,) + self.sections[self.finish:]
+        sections = self.sections[start:finish] + ('#' * total,) + self.sections[finish:]
         return '\n'.join(map(str, sections))
+
+    @classmethod
+    def from_string(cls, strings, **kwargs):
+        ''' create a track from a sequence of section strings '''
+
+        if isinstance(strings, (str, bytes)):
+            return cls.from_string(CLASS_REGEX.split(strings))
+
+        classes = filter(None, map(class_from_path, strings))
+        sections = (clazz(i) for i, clazz in enumerate(classes))
+        return cls(sections=sections, **kwargs)
 
 
 class Cyclist:
