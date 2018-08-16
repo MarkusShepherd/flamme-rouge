@@ -135,6 +135,7 @@ class Track:
             end = self._move_cyclist(cyclist, value, pos)
             if pos != end:
                 section.remove_cyclist(cyclist)
+            return end - pos
 
     def do_slipstream(self):
         ''' move cyclists through slipstream '''
@@ -144,6 +145,7 @@ class Track:
                 if (all(s.slipstream for s in sec)
                         and sec[0].cyclists and sec[1].empty() and sec[2].cyclists):
                     for cyclist in sec[0].cyclists:
+                        LOGGER.info('cyclist <%s> receives slipstream', cyclist)
                         self.move_cyclist(cyclist, 1)
                     break # start over to move cyclists at the end of the pack
             else:
@@ -155,6 +157,7 @@ class Track:
         for sec0, sec1 in window(self.sections, 2):
             if sec1.empty():
                 for cyclist in sec0.cyclists:
+                    LOGGER.info('cyclist <%s> gets exhausted', cyclist)
                     cyclist.discard(EXHAUSTION_CARD)
 
     def leading(self):
@@ -262,6 +265,7 @@ class Team:
 class Strategy:
     ''' strategy '''
 
+    #pylint: disable=no-self-use
     def starting_positions(self, team, game):
         ''' select starting positions '''
 
@@ -327,14 +331,19 @@ class FRGame:
         for team in self.teams:
             for cyclist in team.strategy.cyclists(team, self):
                 cyclist.draw_hand()
-                # hand = tuple(cyclist.hand)
+                hand = tuple(cyclist.hand)
                 card = team.strategy.choose_card(cyclist, team, self)
                 cyclist.select_card(card)
                 cyclist.discard_hand()
+                LOGGER.info('cyclist <%s> received hand %s and chose <%d>', cyclist, hand, card)
 
         for cyclist in self.track.cyclists():
-            self.track.move_cyclist(cyclist, cyclist.curr_card)
+            planned = cyclist.curr_card
+            actual = self.track.move_cyclist(cyclist, cyclist.curr_card)
             cyclist.curr_card = None
+            LOGGER.info(
+                'cyclist <%s> planned to move %d and did move %d section(s)',
+                cyclist, planned, actual)
 
         self.track.do_slipstream()
         self.track.do_exhaustion()
