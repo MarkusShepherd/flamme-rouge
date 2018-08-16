@@ -8,7 +8,7 @@ import sys
 
 from .core import FRGame, Rouleur, Sprinteur, Strategy, Team
 from .strategies import Human
-from .tracks import FIRENZE_MILANO
+from .tracks import AVENUE_CORSO_PASEO
 
 LOGGER = logging.getLogger(__name__)
 
