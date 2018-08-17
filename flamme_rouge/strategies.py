@@ -4,10 +4,23 @@
 
 import logging
 
-from .teams import Regular, Sprinteur
+from random import shuffle
+
+from .teams import Regular, Rouleur, Sprinteur, Team
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _available_start(game):
+    sections = game.track.sections[:game.track.start]
+    return [section for section in sections if not section.full()]
+
+
+def _first_available(game, cyclists, key=None):
+    available = reversed(_available_start(game))
+    cyclists = cyclists if key is None else sorted(cyclists, key=key)
+    return dict(zip(cyclists, available))
 
 
 class Human(Regular):
@@ -24,7 +37,7 @@ class Human(Regular):
 
         result = {}
 
-        available = [section for section in sections if not section.full()]
+        available = _available_start(game)
 
         lower = min(section.position for section in available)
         upper = max(section.position for section in available)
@@ -69,6 +82,62 @@ class Human(Regular):
             if card in cyclist.hand:
                 return card
 
+
+class Peloton(Team):
+    ''' peloton team '''
+
+    def __init__(self, name=None):
+        self.leader = Rouleur(self)
+        self.dummy = Rouleur(self)
+        super().__init__(
+            name=name or 'Peloton', cyclists=(self.leader, self.dummy), exhaustion=False, order=0)
+
+        self.leader.deck.extend((0, 0))
+        shuffle(self.leader.deck)
+        self.dummy.deck = []
+
+        self.curr_card = None
+
+    def starting_positions(self, game):
+        return _first_available(game, self.cyclists)
+
+    def next_cyclist(self, game=None):
+        return (
+            self.leader if self.leader.curr_card is None
+            else self.dummy if self.dummy.curr_card is None
+            else None)
+
+    def choose_card(self, cyclist, game=None):
+        if cyclist is self.dummy:
+            card = self.curr_card
+            cyclist.hand = [card]
+            self.curr_card = None
+            return card
+
+        card = super().choose_card(cyclist, game)
+
+        if card:
+            self.curr_card = card
+            return card
+
+        assert game
+
+        # discard Attack! card
+        cyclist.hand.remove(0)
+
+        first = None
+        for cyc in game.track.cyclists():
+            if cyc in self.cyclists:
+                first = cyc
+                break
+        assert first
+
+        card = 2 if cyclist is first else 9
+        cyclist.hand.append(card)
+        self.curr_card = 11 - card
+        return card
+
+
 class Muscle(Regular):
     ''' muscle team '''
 
@@ -80,9 +149,4 @@ class Muscle(Regular):
                 cyclist.deck.append(5)
 
     def starting_positions(self, game):
-        sections = game.track.sections[:game.track.start]
-        available = [section for section in reversed(sections) if not section.full()]
-
-        cyclists = sorted(self.cyclists, key=lambda x: not isinstance(x, Sprinteur))
-
-        return dict(zip(cyclists, available))
+        return _first_available(game, self.cyclists, lambda x: not isinstance(x, Sprinteur))

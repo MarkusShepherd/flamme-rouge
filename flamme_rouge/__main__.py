@@ -8,7 +8,7 @@ import logging
 import sys
 
 from .core import FRGame
-from .strategies import Human, Muscle
+from .strategies import Human, Muscle, Peloton
 from .tracks import AVENUE_CORSO_PASEO, Track
 from .utils import class_from_path
 
@@ -47,7 +47,9 @@ def _main():
     LOGGER.info(track)
 
     teams = (
-        Human(name=name) if i < args.humans else Muscle(name=name)
+        Human(name=name) if i < args.humans
+        else Peloton() if i == args.humans
+        else Muscle(name=name)
         for i, name in enumerate(args.names))
 
     game = FRGame(track, teams)

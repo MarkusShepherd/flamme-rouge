@@ -35,7 +35,7 @@ class Cyclist:
         ''' draw a new hand '''
 
         self.discard_hand()
-        self.hand = list(filter(None, (self._draw() for _ in range(size))))
+        self.hand = [card for card in (self._draw() for _ in range(size)) if card is not None]
         if not self.hand:
             self.hand = [EXHAUSTION_CARD]
 
