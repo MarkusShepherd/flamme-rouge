@@ -9,7 +9,7 @@ import sys
 
 from .core import FRGame
 from .strategies import Human
-from .teams import Rouleur, Sprinteur, Strategy, Team
+from .teams import Rouleur, Sprinteur, Team
 from .tracks import AVENUE_CORSO_PASEO
 from .utils import class_from_path
 
@@ -47,18 +47,13 @@ def _main():
     LOGGER.info(track)
 
     teams = []
-    strategy = Strategy()
 
     for i, name in enumerate(args.names):
         sprinteur = Sprinteur()
         rouleur = Rouleur()
-        team = Team(
-            name=name,
-            cyclists=(sprinteur, rouleur),
-            strategy=Human() if i < args.humans else strategy,
-        )
-        sprinteur.team = team
-        rouleur.team = team
+        team = (
+            Human(name=name, cyclists=(sprinteur, rouleur)) if i < args.humans
+            else Team(name=name, cyclists=(sprinteur, rouleur)))
         teams.append(team)
 
         LOGGER.info('Team <%s> with members <%s> and <%s>', team, sprinteur, rouleur)

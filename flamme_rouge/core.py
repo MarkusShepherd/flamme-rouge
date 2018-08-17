@@ -23,7 +23,7 @@ class FRGame:
         ''' initiate the game '''
 
         for team in self.teams:
-            for cyclist, section in team.strategy.starting_positions(team, self).items():
+            for cyclist, section in team.starting_positions(self).items():
                 section.add_cyclist(cyclist)
 
         LOGGER.info('starting positions:')
@@ -33,10 +33,10 @@ class FRGame:
         ''' play a round '''
 
         for team in self.teams:
-            for cyclist in team.strategy.cyclists(team, self):
+            for cyclist in team.order_cyclists(self):
                 cyclist.draw_hand()
                 hand = tuple(cyclist.hand)
-                card = team.strategy.choose_card(cyclist, team, self)
+                card = team.choose_card(cyclist, self)
                 cyclist.select_card(card)
                 cyclist.discard_hand()
                 LOGGER.info('cyclist <%s> received hand %s and chose <%d>', cyclist, hand, card)

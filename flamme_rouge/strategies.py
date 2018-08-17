@@ -4,16 +4,16 @@
 
 import logging
 
-from .teams import Strategy
+from .teams import Team
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Human(Strategy):
+class Human(Team):
     ''' human input '''
 
-    def starting_positions(self, team, game):
+    def starting_positions(self, game):
         sections = game.track.sections[:game.track.start]
 
         print('currently chosen starting positions:')
@@ -26,7 +26,7 @@ class Human(Strategy):
         lower = min(section.position for section in available)
         upper = max(section.position for section in available)
 
-        for cyclist in team.cyclists:
+        for cyclist in self.cyclists:
             section = None
 
             while section is None:
@@ -43,8 +43,8 @@ class Human(Strategy):
 
         return result
 
-    def next_cyclist(self, team, game=None):
-        available = [cyclist for cyclist in team.cyclists if cyclist.curr_card is None]
+    def next_cyclist(self, game=None):
+        available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
 
         if len(available) < 2:
             return available[0] if available else None
@@ -57,7 +57,7 @@ class Human(Strategy):
 
         return available[choice]
 
-    def choose_card(self, cyclist, team=None, game=None):
+    def choose_card(self, cyclist, game=None):
         while True:
             card = input_int(
                 'Choose your card for <{:s}> from hand {:s}: '.format(

@@ -86,20 +86,14 @@ class Sprinteur(Cyclist):
 class Team:
     ''' team '''
 
-    def __init__(self, name, cyclists, strategy=None):
+    def __init__(self, name, cyclists):
         self.name = name
         self.cyclists = tuple(cyclists)
-        self.strategy = strategy if strategy is not None else Strategy()
 
-    def __str__(self):
-        return self.name
+        for cyclist in self.cyclists:
+            cyclist.team = self
 
-
-class Strategy:
-    ''' strategy '''
-
-    #pylint: disable=no-self-use
-    def starting_positions(self, team, game):
+    def starting_positions(self, game):
         ''' select starting positions '''
 
         result = {}
@@ -107,7 +101,7 @@ class Strategy:
         available = [
             section for section in game.track.sections[:game.track.start] if not section.full()]
 
-        for cyclist in team.cyclists:
+        for cyclist in self.cyclists:
             section = choice(available)
             result[cyclist] = section
             if len(section.cyclists) + 1 >= section.lanes:
@@ -115,24 +109,27 @@ class Strategy:
 
         return result
 
-    #pylint: disable=no-self-use,unused-argument
-    def next_cyclist(self, team, game=None):
+    #pylint: disable=unused-argument
+    def next_cyclist(self, game=None):
         ''' select the next cyclist '''
 
-        available = [cyclist for cyclist in team.cyclists if cyclist.curr_card is None]
+        available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
         return choice(available) if available else None
 
-    def cyclists(self, team, game=None):
+    def order_cyclists(self, game=None):
         ''' generator of cyclists in order '''
 
         while True:
-            cyclist = self.next_cyclist(team, game)
+            cyclist = self.next_cyclist(game)
             if cyclist is None:
                 return
             yield cyclist
 
     #pylint: disable=no-self-use,unused-argument
-    def choose_card(self, cyclist, team=None, game=None):
+    def choose_card(self, cyclist, game=None):
         ''' choose card '''
 
         return choice(cyclist.hand) if cyclist.hand else None
+
+    def __str__(self):
+        return self.name
