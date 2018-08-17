@@ -10,7 +10,7 @@ import sys
 from .core import FRGame
 from .strategies import Human
 from .teams import Rouleur, Sprinteur, Team
-from .tracks import AVENUE_CORSO_PASEO
+from .tracks import AVENUE_CORSO_PASEO, Track
 from .utils import class_from_path
 
 LOGGER = logging.getLogger(__name__)
@@ -44,6 +44,7 @@ def _main():
     if not track:
         raise ValueError('track <{}> not found'.format(args.track))
 
+    track = track if isinstance(track, Track) else Track.from_sections(track)
     LOGGER.info(track)
 
     teams = []

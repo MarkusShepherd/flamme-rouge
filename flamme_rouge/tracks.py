@@ -86,6 +86,12 @@ class Section:
 
         return '\n'.join((top, middle, bottom))
 
+class Section3(Section):
+    ''' 3 lane section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, lanes=3)
+
 
 class MountainUp(Section):
     ''' up section '''
@@ -99,6 +105,27 @@ class MountainDown(Section):
 
     def __init__(self, position):
         super().__init__(position=position, min_speed=5)
+
+
+class Supply(Section):
+    ''' supply zone section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, lanes=3, min_speed=4)
+
+
+class Cobblestone1(Section):
+    ''' cobblestone with one lane '''
+
+    def __init__(self, position):
+        super().__init__(position=position, lanes=1, slipstream=False)
+
+
+class Cobblestone2(Section):
+    ''' cobblestone with two lanes '''
+
+    def __init__(self, position):
+        super().__init__(position=position, slipstream=False)
 
 
 class Track:
@@ -205,28 +232,36 @@ class Track:
         return '\n'.join(map(str, sections))
 
     @classmethod
-    def from_string(cls, strings, **kwargs):
-        ''' create a track from a sequence of section strings '''
+    def from_sections(cls, sections, **kwargs):
+        ''' create a track from a sequence of sections '''
 
-        if isinstance(strings, (str, bytes)):
-            return cls.from_string(CLASS_REGEX.split(strings))
+        if isinstance(sections, (str, bytes)):
+            return cls.from_sections(CLASS_REGEX.split(sections))
 
-        classes = filter(None, map(class_from_path, strings))
+        classes = filter(None, map(class_from_path, sections))
         sections = (clazz(i) for i, clazz in enumerate(classes))
         return cls(sections=sections, **kwargs)
 
 
 _SEC = (Section,)
+_SEC3 = (Section3,)
 _UP = (MountainUp,)
 _DOWN = (MountainDown,)
+_SUP = (Supply,)
+_COB1 = (Cobblestone1,)
+_COB2 = (Cobblestone2,)
 
-AVENUE_CORSO_PASEO = Track.from_string(_SEC * 78)
-FIRENZE_MILANO = Track.from_string(
+AVENUE_CORSO_PASEO = Track.from_sections(_SEC * 78)
+FIRENZE_MILANO = Track.from_sections(
     _SEC * 22 + _UP * 5 + _DOWN * 3 + _SEC * 16 + _UP * 7 + _DOWN * 3 + _SEC * 22)
-LA_HAUT_MONTAGNE = Track.from_string(
+LA_HAUT_MONTAGNE = Track.from_sections(
     _SEC * 36 + _UP * 7 + _DOWN * 5 + _SEC * 14 + _UP * 12 + _SEC * 4,
     finish=-4)
-PLATEAUX_DE_WALLONIE = Track.from_string(
+PLATEAUX_DE_WALLONIE = Track.from_sections(
     _SEC * 16 + _UP * 3 + _DOWN * 3 + _SEC * 6
     + _UP * 2 + _DOWN * 2 + _SEC * 34 + _UP * 2 + _SEC * 10,
+    start=4)
+STAGE_9 = Track.from_sections(
+    _SEC * 12 + _SUP * 5 + _SEC * 3 + _COB1 + _COB2 + _COB1 + _COB2 + _COB1 * 3 + _COB2 + _COB1
+    + _SEC * 11 + _SUP * 5 + _SEC * 6 +  _COB1 + _COB2 + _COB1 * 4 + _COB2 + _COB1 + _SEC * 19,
     start=4)
