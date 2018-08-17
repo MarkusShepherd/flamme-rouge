@@ -4,7 +4,7 @@
 
 import logging
 
-from .core import Strategy
+from .teams import Strategy
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)

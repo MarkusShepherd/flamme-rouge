@@ -7,8 +7,9 @@ import argparse
 import logging
 import sys
 
-from .core import FRGame, Rouleur, Sprinteur, Strategy, Team
+from .core import FRGame
 from .strategies import Human
+from .teams import Rouleur, Sprinteur, Strategy, Team
 from .tracks import AVENUE_CORSO_PASEO
 from .utils import class_from_path
 
