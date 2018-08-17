@@ -148,9 +148,9 @@ class Track:
         for section in reversed(self.sections):
             yield from section.cyclists
 
-    def _move_cyclist(self, cyclist, value, start):
-        min_speed = self.sections[start].min_speed
-        value = value if min_speed is None else max(value, min_speed)
+    def _move_cyclist(self, cyclist, value, start, min_speed=False):
+        min_speed_value = self.sections[start].min_speed
+        value = value if not min_speed or min_speed_value is None else max(value, min_speed_value)
 
         for i, section in enumerate(self.sections[start:start + value + 1]):
             max_speed = section.max_speed
@@ -168,13 +168,13 @@ class Track:
 
         return start
 
-    def move_cyclist(self, cyclist, value):
+    def move_cyclist(self, cyclist, value, min_speed=False):
         ''' move cyclists '''
 
         for pos, section in enumerate(self.sections):
             if cyclist not in section.cyclists:
                 continue
-            end = self._move_cyclist(cyclist, value, pos)
+            end = self._move_cyclist(cyclist=cyclist, value=value, start=pos, min_speed=min_speed)
             if pos != end:
                 section.remove_cyclist(cyclist)
             return end - pos

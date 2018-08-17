@@ -46,7 +46,7 @@ class FRGame:
 
         for cyclist in self.track.cyclists():
             planned = cyclist.curr_card
-            actual = self.track.move_cyclist(cyclist, cyclist.curr_card)
+            actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
             cyclist.curr_card = None
             LOGGER.info(
                 'cyclist <%s> planned to move %d and did move %d section(s)',
