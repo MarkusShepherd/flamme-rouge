@@ -67,7 +67,7 @@ def input_int(prompt, base=10, lower=None, upper=None):
 def class_from_path(path):
     ''' load an object from the dotted path '''
 
-    if isinstance(path, type):
+    if not isinstance(path, (str, bytes)):
         return path
 
     parts = path.split('.')
