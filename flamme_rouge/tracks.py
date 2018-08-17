@@ -2,7 +2,219 @@
 
 ''' tracks '''
 
-from .core import MountainDown, MountainUp, Section, Track
+import logging
+import re
+
+from collections import deque
+
+from .cards import EXHAUSTION_CARD
+from .utils import class_from_path, window
+
+LOGGER = logging.getLogger(__name__)
+
+CLASS_REGEX = re.compile(r'[^\w.]+')
+
+
+class Section:
+    ''' section on the track '''
+
+    LANE_STR_WIDTH = 20
+
+    def __init__(self, position, lanes=2, slipstream=True, min_speed=None, max_speed=None):
+        self.position = position
+        self.lanes = lanes
+        self.slipstream = slipstream
+        self.min_speed = min_speed
+        self.max_speed = max_speed
+
+        self._cyclists = deque(maxlen=lanes)
+
+    @property
+    def cyclists(self):
+        ''' cyclists '''
+
+        return tuple(self._cyclists)
+
+    def empty(self):
+        ''' true if section is empty '''
+
+        return not self._cyclists
+
+    def full(self):
+        ''' true if section is filled to capacity '''
+
+        return len(self._cyclists) >= self.lanes
+
+    def add_cyclist(self, cyclist):
+        ''' add a rider to the section '''
+
+        if self.full():
+            return False
+        self._cyclists.append(cyclist)
+        return True
+
+    def remove_cyclist(self, cyclist):
+        ''' remove a rider from this section '''
+
+        try:
+            self._cyclists.remove(cyclist)
+            return True
+        except ValueError:
+            pass
+        return False
+
+    def __str__(self):
+        total = (self.LANE_STR_WIDTH + 1) * self.lanes - 1
+        left = (total - 5) // 2
+        right = total - left - 5
+        top = '+' + '-' * left + ' {:3d} '.format(self.position) + '-' * right + '+'
+        if not self.slipstream:
+            top += ' 🚫'
+
+        lane_str = ' {{:{:d}s}} '.format(self.LANE_STR_WIDTH - 2)
+        cyclists = self.cyclists
+        cyclists += ('',) * (self.lanes - len(self._cyclists))
+        cyclists = tuple(
+            lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
+        middle = '|'.join(('',) + cyclists + ('',))
+        if self.max_speed is not None:
+            middle = '{:s} ≤{:d}'.format(middle, self.max_speed)
+
+        bottom = '+' + '-' * total + '+'
+        if self.min_speed is not None:
+            bottom = '{:s} ≥{:d}'.format(bottom, self.min_speed)
+
+        return '\n'.join((top, middle, bottom))
+
+
+class MountainUp(Section):
+    ''' up section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, slipstream=False, max_speed=5)
+
+
+class MountainDown(Section):
+    ''' down section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, min_speed=5)
+
+
+class Track:
+    ''' track '''
+
+    def __init__(self, sections, start=5, finish=-5):
+        self.sections = tuple(sections)
+        self.start = start
+        self.finish = finish if finish > 0 else len(self) + finish
+
+    def __len__(self):
+        return len(self.sections)
+
+    def __iter__(self):
+        return iter(self.sections)
+
+    def cyclists(self):
+        ''' generator of riders from first to last '''
+
+        for section in reversed(self.sections):
+            yield from section.cyclists
+
+    def _move_cyclist(self, cyclist, value, start):
+        min_speed = self.sections[start].min_speed
+        value = value if min_speed is None else max(value, min_speed)
+
+        for i, section in enumerate(self.sections[start:start + value + 1]):
+            max_speed = section.max_speed
+            if max_speed is None:
+                continue
+            if i > max_speed:
+                value = i - 1
+                break
+            value = min(value, max_speed)
+
+        for pos in range(min(start + value, len(self) - 1), start, -1):
+            section = self.sections[pos]
+            if section.add_cyclist(cyclist):
+                return pos
+
+        return start
+
+    def move_cyclist(self, cyclist, value):
+        ''' move cyclists '''
+
+        for pos, section in enumerate(self.sections):
+            if cyclist not in section.cyclists:
+                continue
+            end = self._move_cyclist(cyclist, value, pos)
+            if pos != end:
+                section.remove_cyclist(cyclist)
+            return end - pos
+
+    def do_slipstream(self):
+        ''' move cyclists through slipstream '''
+
+        while True:
+            for sec in window(self.sections, 3):
+                if (all(s.slipstream for s in sec)
+                        and sec[0].cyclists and sec[1].empty() and sec[2].cyclists):
+                    for cyclist in sec[0].cyclists:
+                        LOGGER.info('cyclist <%s> receives slipstream', cyclist)
+                        self.move_cyclist(cyclist, 1)
+                    break # start over to move cyclists at the end of the pack
+            else:
+                return # all slipstreams done
+
+    def do_exhaustion(self):
+        ''' add exhaustion cards '''
+
+        for sec0, sec1 in window(self.sections, 2):
+            if sec1.empty():
+                for cyclist in sec0.cyclists:
+                    LOGGER.info('cyclist <%s> gets exhausted', cyclist)
+                    cyclist.discard(EXHAUSTION_CARD)
+
+    def leading(self):
+        ''' leading cyclist '''
+
+        for section in reversed(self.sections):
+            if not section.empty():
+                return section.cyclists[0]
+
+        return None
+
+    def non_empty(self):
+        ''' non-empty sections '''
+
+        for section in self.sections:
+            if not section.empty():
+                yield section
+
+    def finished(self):
+        ''' game finished '''
+
+        return any(not section.empty() for section in self.sections[self.finish:])
+
+    def __str__(self):
+        start = next(self.non_empty(), None)
+        start = start.position - 1 if start is not None and start.position else 0
+        finish = max(start, self.finish)
+        total = (Section.LANE_STR_WIDTH + 1) * 2 + 1
+        sections = self.sections[start:finish] + ('#' * total,) + self.sections[finish:]
+        return '\n'.join(map(str, sections))
+
+    @classmethod
+    def from_string(cls, strings, **kwargs):
+        ''' create a track from a sequence of section strings '''
+
+        if isinstance(strings, (str, bytes)):
+            return cls.from_string(CLASS_REGEX.split(strings))
+
+        classes = filter(None, map(class_from_path, strings))
+        sections = (clazz(i) for i, clazz in enumerate(classes))
+        return cls(sections=sections, **kwargs)
+
 
 _SEC = (Section,)
 _UP = (MountainUp,)
