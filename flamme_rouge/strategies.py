@@ -4,14 +4,17 @@
 
 import logging
 
-from .teams import Team
+from .teams import Regular, Sprinteur
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Human(Team):
+class Human(Regular):
     ''' human input '''
+
+    def __init__(self, name):
+        super().__init__(name=name, exhaustion=True)
 
     def starting_positions(self, game):
         sections = game.track.sections[:game.track.start]
@@ -65,3 +68,21 @@ class Human(Team):
 
             if card in cyclist.hand:
                 return card
+
+class Muscle(Regular):
+    ''' muscle team '''
+
+    def __init__(self, name=None):
+        super().__init__(name=name or 'Muscle', exhaustion=False, order=1)
+
+        for cyclist in self.cyclists:
+            if isinstance(cyclist, Sprinteur):
+                cyclist.deck.append(5)
+
+    def starting_positions(self, game):
+        sections = game.track.sections[:game.track.start]
+        available = [section for section in reversed(sections) if not section.full()]
+
+        cyclists = sorted(self.cyclists, key=lambda x: not isinstance(x, Sprinteur))
+
+        return dict(zip(cyclists, available))

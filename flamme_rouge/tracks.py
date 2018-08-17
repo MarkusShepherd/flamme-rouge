@@ -199,8 +199,9 @@ class Track:
         for sec0, sec1 in window(self.sections, 2):
             if sec1.empty():
                 for cyclist in sec0.cyclists:
-                    LOGGER.info('cyclist <%s> gets exhausted', cyclist)
-                    cyclist.discard(EXHAUSTION_CARD)
+                    if not cyclist.team or cyclist.team.exhaustion:
+                        LOGGER.info('cyclist <%s> gets exhausted', cyclist)
+                        cyclist.discard(EXHAUSTION_CARD)
 
     def leading(self):
         ''' leading cyclist '''

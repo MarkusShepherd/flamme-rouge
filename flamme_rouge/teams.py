@@ -3,6 +3,7 @@
 ''' teams '''
 
 import logging
+import math
 
 from random import choice, shuffle
 
@@ -72,23 +73,25 @@ class Cyclist:
 class Rouleur(Cyclist):
     ''' rouleur '''
 
-    def __init__(self):
-        super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7))
+    def __init__(self, team=None):
+        super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), team=team)
 
 
 class Sprinteur(Cyclist):
     ''' sprinteur '''
 
-    def __init__(self):
-        super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9))
+    def __init__(self, team=None):
+        super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9), team=team)
 
 
 class Team:
     ''' team '''
 
-    def __init__(self, name, cyclists):
+    def __init__(self, name, cyclists, exhaustion=True, order=math.inf):
         self.name = name
         self.cyclists = tuple(cyclists)
+        self.exhaustion = exhaustion
+        self.order = order
 
         for cyclist in self.cyclists:
             cyclist.team = self
@@ -133,3 +136,13 @@ class Team:
 
     def __str__(self):
         return self.name
+
+class Regular(Team):
+    ''' team with rouleur and sprinteur '''
+
+    def __init__(self, **kwargs):
+        kwargs.pop('cyclists', None)
+        super().__init__(
+            cyclists=(Sprinteur(team=self), Rouleur(team=self)),
+            **kwargs,
+        )

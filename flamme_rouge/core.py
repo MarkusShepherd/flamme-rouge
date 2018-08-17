@@ -14,9 +14,12 @@ class FRGame:
 
     def __init__(self, track, teams):
         self.track = track
-        self.teams = list(teams)
-        shuffle(self.teams)
-        self.teams = tuple(self.teams)
+
+        teams = list(teams)
+        shuffle(teams)
+        teams.sort(key=lambda team: team.order)
+        self.teams = tuple(teams)
+
         self.rounds_played = 0
 
     def starting_positions(self):
