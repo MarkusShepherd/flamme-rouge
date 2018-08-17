@@ -6,6 +6,7 @@ import logging
 
 from random import shuffle
 
+from .cards import EXHAUSTION_CARD
 from .teams import Regular, Rouleur, Sprinteur, Team
 from .utils import input_int
 
@@ -26,8 +27,16 @@ def _first_available(game, cyclists, key=None):
 class Human(Regular):
     ''' human input '''
 
-    def __init__(self, name):
+    def __init__(self, name, handicap=0):
         super().__init__(name=name, exhaustion=True)
+
+        if isinstance(handicap, int):
+            handicap_spinteur = handicap // 2
+            handicap = (handicap_spinteur, handicap - handicap_spinteur)
+
+        for cyclist in self.cyclists:
+            cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
+            cyclist.deck.extend((EXHAUSTION_CARD,) * cards)
 
     def starting_positions(self, game):
         sections = game.track.sections[:game.track.start]

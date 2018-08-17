@@ -21,6 +21,9 @@ def _parse_args():
         'names', nargs='*', default=('blue', 'red', 'green', 'black'), help='names of players')
     parser.add_argument('--track', '-t', default=AVENUE_CORSO_PASEO, help='pre-defined track')
     parser.add_argument('--humans', '-H', type=int, default=1, help='number of human players')
+    parser.add_argument(
+        '--exhaustion', '-e', type=int, default=0,
+        help='number of exhaustion cards as initial handicap')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='log level (repeat for more verbosity)')
 
@@ -47,7 +50,7 @@ def _main():
     LOGGER.info(track)
 
     teams = (
-        Human(name=name) if i < args.humans
+        Human(name=name, handicap=args.exhaustion) if i < args.humans
         else Peloton() if i == args.humans
         else Muscle(name=name)
         for i, name in enumerate(args.names))
