@@ -127,7 +127,7 @@ class Team:
             if cyclist is None:
                 return
             LOGGER.debug(
-                'cyclist hand: %r; deck: %r; pile: %r',
+                '🚴 hand: %r; deck: %r; pile: %r',
                 cyclist.hand, cyclist.deck, cyclist.discard_pile)
             yield cyclist
 

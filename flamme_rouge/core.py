@@ -42,14 +42,14 @@ class FRGame:
                 card = team.choose_card(cyclist, self)
                 cyclist.select_card(card)
                 cyclist.discard_hand()
-                LOGGER.info('cyclist <%s> received hand %s and chose <%d>', cyclist, hand, card)
+                LOGGER.info('🚴 <%s> received hand %s and chose <%d>', cyclist, hand, card)
 
         for cyclist in self.track.cyclists():
             planned = cyclist.curr_card
             actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
             cyclist.curr_card = None
             LOGGER.info(
-                'cyclist <%s> planned to move %d and did move %d section(s)',
+                '🚴 <%s> planned to move %d and did move %d section(s)',
                 cyclist, planned, actual)
 
         self.track.do_slipstream()

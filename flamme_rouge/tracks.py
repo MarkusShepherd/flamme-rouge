@@ -187,7 +187,7 @@ class Track:
                 if (all(s.slipstream for s in sec)
                         and sec[0].cyclists and sec[1].empty() and sec[2].cyclists):
                     for cyclist in sec[0].cyclists:
-                        LOGGER.info('cyclist <%s> receives slipstream', cyclist)
+                        LOGGER.info('🚴 <%s> receives slipstream', cyclist)
                         self.move_cyclist(cyclist, 1)
                     break # start over to move cyclists at the end of the pack
             else:
@@ -200,7 +200,7 @@ class Track:
             if sec1.empty():
                 for cyclist in sec0.cyclists:
                     if not cyclist.team or cyclist.team.exhaustion:
-                        LOGGER.info('cyclist <%s> gets exhausted', cyclist)
+                        LOGGER.info('🚴 <%s> gets exhausted', cyclist)
                         cyclist.discard(EXHAUSTION_CARD)
 
     def leading(self):
