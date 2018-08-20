@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 
+from itertools import zip_longest
 from random import choice
 
 from . import tracks
@@ -19,8 +20,7 @@ LOGGER = logging.getLogger(__name__)
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Flamme Rouge')
-    parser.add_argument(
-        'names', nargs='*', default=('blue', 'red', 'green', 'black'), help='names of players')
+    parser.add_argument('names', nargs='*', help='names of players')
     parser.add_argument('--track', '-t', help='pre-defined track')
     parser.add_argument('--humans', '-H', type=int, default=1, help='number of human players')
     parser.add_argument(
@@ -55,11 +55,13 @@ def _main():
     track = track if isinstance(track, tracks.Track) else tracks.Track.from_sections(track)
     LOGGER.info(track)
 
+    num_players = max(track.min_players, len(args.names), args.humans)
+
     teams = (
-        Human(name=name, handicap=args.exhaustion) if i < args.humans
-        else Peloton() if i == args.humans
-        else Muscle(name=name)
-        for i, name in enumerate(args.names))
+        Human(name=name or f'HUM#{i}', handicap=args.exhaustion) if i < args.humans
+        else Peloton(name=name or 'PEL') if i == args.humans
+        else Muscle(name=name or f'MUS#{i}')
+        for i, name in zip_longest(range(num_players), args.names))
 
     game = FRGame(track, teams)
     game.play()
