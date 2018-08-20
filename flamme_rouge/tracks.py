@@ -93,6 +93,20 @@ class Section3(Section):
         super().__init__(position=position, lanes=3)
 
 
+class Finish(Section):
+    ''' finish section '''
+
+    def __init__(self, position):
+        super().__init__(position=position, slipstream=False)
+
+
+class Finish3(Section):
+    ''' finish section with 3 lanes '''
+
+    def __init__(self, position):
+        super().__init__(position=position, lanes=3, slipstream=False)
+
+
 class MountainUp(Section):
     ''' up section '''
 
@@ -198,7 +212,7 @@ class Track:
     def do_exhaustion(self):
         ''' add exhaustion cards '''
 
-        for sec0, sec1 in window(self.sections, 2):
+        for sec0, sec1 in window(self.sections[:self.finish + 1], 2):
             if sec1.empty():
                 for cyclist in sec0.cyclists:
                     if not cyclist.team or cyclist.team.exhaustion:
@@ -248,23 +262,28 @@ class Track:
 
 _SEC = (Section,)
 _SEC3 = (Section3,)
+_FIN = (Finish,)
+_FIN3 = (Finish3,)
 _UP = (MountainUp,)
 _DOWN = (MountainDown,)
 _SUP = (Supply,)
 _COB1 = (Cobblestone1,)
 _COB2 = (Cobblestone2,)
 
-AVENUE_CORSO_PASEO = Track.from_sections(_SEC * 78)
+AVENUE_CORSO_PASEO = Track.from_sections(_SEC * 73 + _FIN * 5)
 FIRENZE_MILANO = Track.from_sections(
-    _SEC * 22 + _UP * 5 + _DOWN * 3 + _SEC * 16 + _UP * 7 + _DOWN * 3 + _SEC * 22)
+    _SEC * 22 + _UP * 5 + _DOWN * 3 + _SEC * 16 + _UP * 7 + _DOWN * 3 + _SEC * 17 + _FIN * 5)
 LA_HAUT_MONTAGNE = Track.from_sections(
-    _SEC * 36 + _UP * 7 + _DOWN * 5 + _SEC * 14 + _UP * 12 + _SEC * 4,
+    _SEC * 36 + _UP * 7 + _DOWN * 5 + _SEC * 14 + _UP * 12 + _FIN * 4,
     finish=-4)
 PLATEAUX_DE_WALLONIE = Track.from_sections(
     _SEC * 16 + _UP * 3 + _DOWN * 3 + _SEC * 6
-    + _UP * 2 + _DOWN * 2 + _SEC * 34 + _UP * 2 + _SEC * 10,
+    + _UP * 2 + _DOWN * 2 + _SEC * 34 + _UP * 2 + _SEC * 5 + _FIN * 5,
     start=4)
 STAGE_9 = Track.from_sections(
-    _SEC * 12 + _SUP * 5 + _SEC * 3 + _COB1 + _COB2 + _COB1 + _COB2 + _COB1 * 3 + _COB2 + _COB1
-    + _SEC * 11 + _SUP * 5 + _SEC * 6 +  _COB1 + _COB2 + _COB1 * 4 + _COB2 + _COB1 + _SEC * 19,
+    _SEC * 12 + _SUP * 5 + _SEC * 3
+    + _COB1 + _COB2 + _COB1 + _COB2 + _COB1 * 3 + _COB2 + _COB1
+    + _SEC * 11 + _SUP * 5 + _SEC * 6
+    + _COB1 + _COB2 + _COB1 * 4 + _COB2 + _COB1
+    + _SEC * 14 + _FIN * 5,
     start=4)
