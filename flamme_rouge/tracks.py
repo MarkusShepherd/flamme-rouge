@@ -67,22 +67,22 @@ class Section:
         total = (self.LANE_STR_WIDTH + 1) * self.lanes - 1
         left = (total - 5) // 2
         right = total - left - 5
-        top = '+' + '-' * left + ' {:3d} '.format(self.position) + '-' * right + '+'
+        top = '+' + '-' * left + f' {self.position:3d} ' + '-' * right + '+'
         if not self.slipstream:
             top += ' 🚫'
 
-        lane_str = ' {{:{:d}s}} '.format(self.LANE_STR_WIDTH - 2)
+        lane_str = f' {{:{self.LANE_STR_WIDTH - 2}s}} '
         cyclists = self.cyclists
         cyclists += ('',) * (self.lanes - len(self._cyclists))
         cyclists = tuple(
             lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
         middle = '|'.join(('',) + cyclists + ('',))
         if self.max_speed is not None:
-            middle = '{:s} ≤{:d}'.format(middle, self.max_speed)
+            middle = f'{middle} ≤{self.max_speed}'
 
         bottom = '+' + '-' * total + '+'
         if self.min_speed is not None:
-            bottom = '{:s} ≥{:d}'.format(bottom, self.min_speed)
+            bottom = f'{bottom} ≥{self.min_speed}'
 
         return '\n'.join((top, middle, bottom))
 

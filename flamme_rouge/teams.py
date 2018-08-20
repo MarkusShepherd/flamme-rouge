@@ -70,7 +70,7 @@ class Cyclist:
     def __str__(self):
         if self.team is None:
             return self.__class__.__name__
-        return '{:s} ({:s})'.format(self.__class__.__name__, str(self.team))
+        return f'{self.__class__.__name__} ({self.team})'
 
 
 class Rouleur(Cyclist):

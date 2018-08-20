@@ -56,8 +56,7 @@ class Human(Regular):
 
             while section is None:
                 choice = input_int(
-                    'Choose position for your {:s}: '.format(str(cyclist)),
-                    lower=lower, upper=upper)
+                    f'Choose position for your {cyclist}: ', lower=lower, upper=upper)
                 sections = [section for section in available if section.position == choice]
                 if sections:
                     section = sections[0]
@@ -74,19 +73,14 @@ class Human(Regular):
         if len(available) < 2:
             return available[0] if available else None
 
-        cyclists = ', '.join(
-            '{:s} ({:d})'.format(str(cyclist), pos) for pos, cyclist in enumerate(available))
-        prompt = 'Choose the next cyclist: {} '.format(cyclists)
-
+        cyclists = ', '.join(f'{cyclist} ({pos})' for pos, cyclist in enumerate(available))
+        prompt = f'Choose the next cyclist: {cyclists} '
         choice = input_int(prompt, lower=0, upper=len(available) - 1)
-
         return available[choice]
 
     def choose_card(self, cyclist, game=None):
         while True:
-            card = input_int(
-                'Choose your card for <{:s}> from hand {:s}: '.format(
-                    str(cyclist), str(cyclist.hand)))
+            card = input_int(f'Choose your card for <{cyclist}> from hand {cyclist.hand}: ')
 
             if card in cyclist.hand:
                 return card
