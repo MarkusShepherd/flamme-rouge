@@ -18,11 +18,12 @@ class Cyclist:
     hand = None
     curr_card = None
 
-    def __init__(self, deck, team=None):
+    def __init__(self, deck, team=None, hand_size=4):
         self.deck = list(deck)
         shuffle(self.deck)
         self.discard_pile = []
         self.team = team
+        self.hand_size = hand_size or 4
 
     def _draw(self):
         if not self.deck:
@@ -31,8 +32,10 @@ class Cyclist:
             shuffle(self.deck)
         return self.deck.pop(choice(range(len(self.deck)))) if self.deck else None
 
-    def draw_hand(self, size=4):
+    def draw_hand(self, size=None):
         ''' draw a new hand '''
+
+        size = self.hand_size if size is None else size
 
         self.discard_hand()
         self.hand = [card for card in (self._draw() for _ in range(size)) if card is not None]
@@ -73,15 +76,17 @@ class Cyclist:
 class Rouleur(Cyclist):
     ''' rouleur '''
 
-    def __init__(self, team=None):
-        super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), team=team)
+    def __init__(self, **kwargs):
+        kwargs.pop('deck', None)
+        super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), **kwargs)
 
 
 class Sprinteur(Cyclist):
     ''' sprinteur '''
 
-    def __init__(self, team=None):
-        super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9), team=team)
+    def __init__(self, **kwargs):
+        kwargs.pop('deck', None)
+        super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9), **kwargs)
 
 
 class Team:
@@ -143,9 +148,11 @@ class Team:
 class Regular(Team):
     ''' team with rouleur and sprinteur '''
 
-    def __init__(self, **kwargs):
+    def __init__(self, hand_size=None, **kwargs):
         kwargs.pop('cyclists', None)
         super().__init__(
-            cyclists=(Sprinteur(team=self), Rouleur(team=self)),
+            cyclists=(
+                Sprinteur(team=self, hand_size=hand_size),
+                Rouleur(team=self, hand_size=hand_size)),
             **kwargs,
         )

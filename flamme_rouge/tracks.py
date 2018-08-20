@@ -131,10 +131,12 @@ class Cobblestone2(Section):
 class Track:
     ''' track '''
 
-    def __init__(self, sections, start=5, finish=-5):
+    def __init__(self, sections, start=5, finish=-5, min_players=3, max_players=4):
         self.sections = tuple(sections)
         self.start = start
         self.finish = finish if finish > 0 else len(self) + finish
+        self.min_players = min_players
+        self.max_players = max_players
 
     def __len__(self):
         return len(self.sections)

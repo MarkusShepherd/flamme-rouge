@@ -96,8 +96,8 @@ class Peloton(Team):
     ''' peloton team '''
 
     def __init__(self, name=None):
-        self.leader = Rouleur(self)
-        self.dummy = Rouleur(self)
+        self.leader = Rouleur(team=self, hand_size=1)
+        self.dummy = Rouleur(team=self, hand_size=1)
         super().__init__(
             name=name or 'Peloton', cyclists=(self.leader, self.dummy), exhaustion=False, order=0)
 
@@ -151,7 +151,7 @@ class Muscle(Regular):
     ''' muscle team '''
 
     def __init__(self, name=None):
-        super().__init__(name=name or 'Muscle', exhaustion=False, order=1)
+        super().__init__(name=name or 'Muscle', exhaustion=False, order=1, hand_size=1)
 
         for cyclist in self.cyclists:
             if isinstance(cyclist, Sprinteur):

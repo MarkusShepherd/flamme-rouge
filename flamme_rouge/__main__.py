@@ -7,9 +7,11 @@ import argparse
 import logging
 import sys
 
+from random import choice
+
+from . import tracks
 from .core import FRGame
 from .strategies import Human, Muscle, Peloton
-from .tracks import AVENUE_CORSO_PASEO, Track
 from .utils import class_from_path
 
 LOGGER = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='Flamme Rouge')
     parser.add_argument(
         'names', nargs='*', default=('blue', 'red', 'green', 'black'), help='names of players')
-    parser.add_argument('--track', '-t', default=AVENUE_CORSO_PASEO, help='pre-defined track')
+    parser.add_argument('--track', '-t', help='pre-defined track')
     parser.add_argument('--humans', '-H', type=int, default=1, help='number of human players')
     parser.add_argument(
         '--exhaustion', '-e', type=int, default=0,
@@ -39,14 +41,18 @@ def _main():
         format='%(levelname)-4.4s [%(name)s:%(lineno)s] %(message)s',
     )
 
+    if isinstance(args.track, str) and not args.track.startswith('flamme_rouge.'):
+        args.track = f'flamme_rouge.{args.track}'
+
     LOGGER.info(args)
 
     track = class_from_path(args.track)
 
     if not track:
-        raise ValueError('track <{}> not found'.format(args.track))
+        track = choice(
+            [track for track in vars(tracks).values() if isinstance(track, tracks.Track)])
 
-    track = track if isinstance(track, Track) else Track.from_sections(track)
+    track = track if isinstance(track, tracks.Track) else tracks.Track.from_sections(track)
     LOGGER.info(track)
 
     teams = (
