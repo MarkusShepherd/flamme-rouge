@@ -57,6 +57,12 @@ def _main():
 
     num_players = max(track.min_players, len(args.names), args.humans)
 
+    if num_players > track.max_players:
+        LOGGER.warning(
+            'you are trying to play with %d players on a track '
+            'that was designed for at most %d players',
+            num_players, track.max_players)
+
     teams = (
         Human(name=name or f'HUM#{i}', handicap=args.exhaustion) if i < args.humans
         else Peloton(name=name or 'PEL') if i == args.humans
