@@ -158,6 +158,11 @@ class Track:
     def __iter__(self):
         return iter(self.sections)
 
+    def available_start(self):
+        ''' available starting positions '''
+
+        return [section for section in self.sections[:self.start] if not section.full()]
+
     def cyclists(self):
         ''' generator of riders from first to last '''
 
@@ -235,9 +240,11 @@ class Track:
             if not section.empty():
                 yield section
 
-    def finished(self):
+    def finished(self, all_cyclists=False):
         ''' game finished '''
 
+        if all_cyclists:
+            return all(section.empty() for section in self.sections[:self.finish])
         return any(not section.empty() for section in self.sections[self.finish:])
 
     def __str__(self):

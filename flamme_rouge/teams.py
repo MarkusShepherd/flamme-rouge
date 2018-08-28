@@ -15,15 +15,27 @@ LOGGER = logging.getLogger(__name__)
 class Cyclist:
     ''' rider or cyclist '''
 
-    hand = None
-    curr_card = None
-
     def __init__(self, deck, team=None, hand_size=4):
         self.deck = list(deck)
         shuffle(self.deck)
+        self.hand = None
         self.discard_pile = []
+        self.curr_card = None
+
         self.team = team
         self.hand_size = hand_size or 4
+
+        self.time = 0
+        self.finished = False
+
+    @property
+    def cards(self):
+        ''' all cards of this cyclist '''
+
+        result = self.deck + self.discard_pile
+        if self.curr_card is not None:
+            result.append(self.curr_card)
+        return sorted(result)
 
     def _draw(self):
         if not self.deck:
@@ -117,11 +129,18 @@ class Team:
 
         return result
 
+    def available_cyclists(self):
+        ''' available cyclist this round '''
+
+        return [
+            cyclist for cyclist in self.cyclists
+            if not cyclist.finished and cyclist.curr_card is None]
+
     #pylint: disable=unused-argument
     def next_cyclist(self, game=None):
         ''' select the next cyclist '''
 
-        available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
+        available = self.available_cyclists()
         return choice(available) if available else None
 
     def order_cyclists(self, game=None):
