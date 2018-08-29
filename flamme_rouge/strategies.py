@@ -27,8 +27,9 @@ def _first_available(game, cyclists, key=None):
 class Human(Regular):
     ''' human input '''
 
-    def __init__(self, name, handicap=0):
-        super().__init__(name=name, exhaustion=True)
+    def __init__(self, name, handicap=0, **kwargs):
+        kwargs['exhaustion'] = True
+        super().__init__(name=name, **kwargs)
 
         if isinstance(handicap, int):
             handicap_spinteur = handicap // 2
@@ -89,11 +90,15 @@ class Human(Regular):
 class Peloton(Team):
     ''' peloton team '''
 
-    def __init__(self, name=None):
+    def __init__(self, name=None, **kwargs):
         self.leader = Rouleur(team=self, hand_size=1)
         self.dummy = Rouleur(team=self, hand_size=1)
-        super().__init__(
-            name=name or 'Peloton', cyclists=(self.leader, self.dummy), exhaustion=False, order=0)
+
+        kwargs['cyclists'] = (self.leader, self.dummy)
+        kwargs['exhaustion'] = False
+        kwargs['order'] = 0
+
+        super().__init__(name=name or 'Peloton', **kwargs)
 
         self.leader.deck.extend((0, 0))
         shuffle(self.leader.deck)
@@ -144,8 +149,12 @@ class Peloton(Team):
 class Muscle(Regular):
     ''' muscle team '''
 
-    def __init__(self, name=None):
-        super().__init__(name=name or 'Muscle', exhaustion=False, order=1, hand_size=1)
+    def __init__(self, name=None, **kwargs):
+        kwargs['exhaustion'] = False
+        kwargs['order'] = 1
+        kwargs['hand_size'] = 1
+
+        super().__init__(name=name or 'Muscle', **kwargs)
 
         for cyclist in self.cyclists:
             if isinstance(cyclist, Sprinteur):

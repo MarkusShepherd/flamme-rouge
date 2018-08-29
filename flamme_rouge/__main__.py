@@ -11,6 +11,7 @@ from itertools import zip_longest
 from random import choice
 
 from . import tracks
+from .const import COLORS
 from .core import FRGame
 from .strategies import Human, Muscle, Peloton
 from .utils import class_from_path
@@ -26,6 +27,10 @@ def _parse_args():
     parser.add_argument(
         '--exhaustion', '-e', type=int, default=0,
         help='number of exhaustion cards as initial handicap')
+    parser.add_argument(
+        '--colors', '-c', nargs='+',
+        default=('blue', 'red', 'green', 'black', 'white', 'magenta', 'cyan', 'yellow'),
+        choices=COLORS, help='colors of the teams')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='log level (repeat for more verbosity)')
 
@@ -64,10 +69,11 @@ def _main():
             num_players, track.max_players)
 
     teams = (
-        Human(name=name or f'HUM#{i}', handicap=args.exhaustion) if i < args.humans
-        else Peloton(name=name or 'PEL') if i == args.humans
-        else Muscle(name=name or f'MUS#{i}')
-        for i, name in zip_longest(range(num_players), args.names))
+        Human(name=name or f'HUM#{i}', handicap=args.exhaustion, colors=colors) if i < args.humans
+        else Peloton(name=name or 'PEL', colors=colors) if i == args.humans
+        else Muscle(name=name or f'MUS#{i}', colors=colors)
+        for i, name, colors in zip_longest(
+            range(num_players), args.names, args.colors[:num_players]))
 
     game = FRGame(track, teams)
     game.play()

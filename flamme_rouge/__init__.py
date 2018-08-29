@@ -14,3 +14,10 @@ from .tracks import (
     STAGE_7_5_6,
     STAGE_9,
 )
+
+try:
+    from colorama import init
+    init()
+
+except Exception:
+    pass

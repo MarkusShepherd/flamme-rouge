@@ -74,8 +74,9 @@ class Section:
         lane_str = f' {{:{self.LANE_STR_WIDTH - 2}s}} '
         cyclists = self.cyclists
         cyclists += ('',) * (self.lanes - len(self._cyclists))
-        cyclists = tuple(
-            lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
+        # TODO format correctly without messing up colors
+        # lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
+        cyclists = tuple(lane_str.format(str(cyclist)) for cyclist in cyclists)
         middle = '|'.join(('',) + cyclists + ('',))
         if self.max_speed is not None:
             middle = f'{middle} ≤{self.max_speed}'

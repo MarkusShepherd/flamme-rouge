@@ -7,6 +7,9 @@ import math
 
 from random import choice, shuffle
 
+from termcolor import colored
+
+from .const import COLORS
 from .cards import EXHAUSTION_CARD
 
 LOGGER = logging.getLogger(__name__)
@@ -15,7 +18,10 @@ LOGGER = logging.getLogger(__name__)
 class Cyclist:
     ''' rider or cyclist '''
 
-    def __init__(self, deck, team=None, hand_size=4):
+    _colors = None
+    _string = None
+
+    def __init__(self, deck, team=None, hand_size=4, colors=None):
         self.deck = list(deck)
         shuffle(self.deck)
         self.hand = None
@@ -28,6 +34,8 @@ class Cyclist:
         self.time = 0
         self.finished = False
 
+        self.colors = colors
+
     @property
     def cards(self):
         ''' all cards of this cyclist '''
@@ -36,6 +44,19 @@ class Cyclist:
         if self.curr_card is not None:
             result.append(self.curr_card)
         return sorted(result)
+
+    @property
+    def colors(self):
+        ''' print colors '''
+
+        return self._colors
+
+    @colors.setter
+    def colors(self, value):
+        self._colors = (
+            {} if not value
+            else COLORS.get(value.lower(), {}) if isinstance(value, str)
+            else value)
 
     def _draw(self):
         if not self.deck:
@@ -80,9 +101,13 @@ class Cyclist:
         self.hand = None
 
     def __str__(self):
-        if self.team is None:
-            return self.__class__.__name__
-        return f'{self.__class__.__name__} ({self.team})'
+        if self._string is not None:
+            return self._string
+        string = (
+            self.__class__.__name__ if self.team is None
+            else f'{self.__class__.__name__} ({self.team})')
+        self._string = colored(string, **self.colors) if self.colors else string
+        return self._string
 
 
 class Rouleur(Cyclist):
@@ -104,14 +129,16 @@ class Sprinteur(Cyclist):
 class Team:
     ''' team '''
 
-    def __init__(self, name, cyclists, exhaustion=True, order=math.inf):
+    def __init__(self, name, cyclists, exhaustion=True, order=math.inf, colors=None):
         self.name = name
         self.cyclists = tuple(cyclists)
         self.exhaustion = exhaustion
         self.order = order
+        self.colors = colors or {}
 
         for cyclist in self.cyclists:
             cyclist.team = self
+            cyclist.colors = cyclist.colors or self.colors
 
     def starting_positions(self, game):
         ''' select starting positions '''
