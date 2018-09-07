@@ -313,3 +313,5 @@ STAGE_9 = Track.from_sections(
     + _COB1 + _COB2 + _COB1 * 4 + _COB2 + _COB1
     + _SEC * 14 + _FIN * 5,
     start=4)
+
+ALL_TRACKS = tuple(obj for obj in locals().values() if isinstance(obj, Track))

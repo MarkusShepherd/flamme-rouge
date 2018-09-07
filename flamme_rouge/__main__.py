@@ -10,7 +10,7 @@ import sys
 from itertools import zip_longest
 from random import choice
 
-from . import tracks
+from .tracks import Track, ALL_TRACKS
 from .const import COLORS
 from .core import FRGame
 from .strategies import Human, Muscle, Peloton
@@ -54,10 +54,9 @@ def _main():
     track = class_from_path(args.track)
 
     if not track:
-        track = choice(
-            [track for track in vars(tracks).values() if isinstance(track, tracks.Track)])
+        track = choice(ALL_TRACKS)
 
-    track = track if isinstance(track, tracks.Track) else tracks.Track.from_sections(track)
+    track = track if isinstance(track, Track) else Track.from_sections(track)
     LOGGER.info(track)
 
     num_players = max(track.min_players, len(args.names), args.humans)

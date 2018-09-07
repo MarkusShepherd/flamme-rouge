@@ -13,6 +13,7 @@ from .tracks import (
     STAGE_7,
     STAGE_7_5_6,
     STAGE_9,
+    ALL_TRACKS,
 )
 
 try:
