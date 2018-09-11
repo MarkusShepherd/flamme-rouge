@@ -1,2 +1,6 @@
 colorama
+gym
+keras
+keras-rl
+tensorflow
 termcolor

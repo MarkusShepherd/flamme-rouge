@@ -12,15 +12,23 @@ LOGGER = logging.getLogger(__name__)
 class FRGame:
     ''' Flamme Rouge game '''
 
+    rounds_played = 0
+
     def __init__(self, track, teams):
         self.track = track
+        self.teams = teams
+        self.reset()
 
-        teams = list(teams)
+    def reset(self):
+        ''' reset this game '''
+
+        self.track = self.track.reset()
+        teams = [team.reset() for team in self.teams]
         shuffle(teams)
         teams.sort(key=lambda team: team.order)
         self.teams = tuple(teams)
-
         self.rounds_played = 0
+        return self
 
     def starting_positions(self):
         ''' initiate the game '''

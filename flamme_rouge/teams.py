@@ -18,23 +18,40 @@ LOGGER = logging.getLogger(__name__)
 class Cyclist:
     ''' rider or cyclist '''
 
+    initial_deck = None
+    deck = None
+    hand = None
+    discard_pile = None
+    curr_card = None
+
+    time = 0
+    finished = False
+
     _colors = None
     _string = None
 
-    def __init__(self, deck, team=None, hand_size=4, colors=None):
-        self.deck = list(deck)
-        shuffle(self.deck)
-        self.hand = None
-        self.discard_pile = []
-        self.curr_card = None
+    def __init__(self, deck=None, team=None, hand_size=4, colors=None):
+        if deck is not None:
+            self.initial_deck = tuple(deck)
+
+        self.reset()
 
         self.team = team
         self.hand_size = hand_size or 4
 
+        self.colors = colors
+
+    def reset(self):
+        ''' reset this cyclist '''
+
+        self.deck = list(self.initial_deck)
+        shuffle(self.deck)
+        self.hand = None
+        self.discard_pile = []
+        self.curr_card = None
         self.time = 0
         self.finished = False
-
-        self.colors = colors
+        return self
 
     @property
     def cards(self):
@@ -113,17 +130,13 @@ class Cyclist:
 class Rouleur(Cyclist):
     ''' rouleur '''
 
-    def __init__(self, **kwargs):
-        kwargs.pop('deck', None)
-        super().__init__(deck=(3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), **kwargs)
+    initial_deck = (3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7)
 
 
 class Sprinteur(Cyclist):
     ''' sprinteur '''
 
-    def __init__(self, **kwargs):
-        kwargs.pop('deck', None)
-        super().__init__(deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9), **kwargs)
+    initial_deck = (2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9)
 
 
 class Team:
@@ -188,6 +201,13 @@ class Team:
 
         return choice(cyclist.hand) if cyclist.hand else None
 
+    def reset(self):
+        ''' reset this team '''
+
+        for cyclist in self.cyclists:
+            cyclist.reset()
+        return self
+
     def __str__(self):
         return self.name
 
@@ -195,10 +215,8 @@ class Regular(Team):
     ''' team with rouleur and sprinteur '''
 
     def __init__(self, hand_size=None, **kwargs):
-        kwargs.pop('cyclists', None)
-        super().__init__(
-            cyclists=(
-                Sprinteur(team=self, hand_size=hand_size),
-                Rouleur(team=self, hand_size=hand_size)),
-            **kwargs,
+        kwargs['cyclists'] = (
+            Sprinteur(team=self, hand_size=hand_size),
+            Rouleur(team=self, hand_size=hand_size),
         )
+        super().__init__(**kwargs)

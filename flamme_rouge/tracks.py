@@ -63,6 +63,12 @@ class Section:
             pass
         return False
 
+    def reset(self):
+        ''' reset this section '''
+
+        self._cyclists = deque(maxlen=self.lanes)
+        return self
+
     def __str__(self):
         total = (self.LANE_STR_WIDTH + 1) * self.lanes - 1
         left = (total - 5) // 2
@@ -248,6 +254,13 @@ class Track:
             return all(section.empty() for section in self.sections[:self.finish])
         return any(not section.empty() for section in self.sections[self.finish:])
 
+    def reset(self):
+        ''' reset this track '''
+
+        for section in self.sections:
+            section.reset()
+        return self
+
     def __str__(self):
         start = next(self.non_empty(), None)
         start = start.position - 1 if start is not None and start.position else 0
@@ -261,7 +274,7 @@ class Track:
         ''' create a track from a sequence of sections '''
 
         if isinstance(sections, (str, bytes)):
-            return cls.from_sections(CLASS_REGEX.split(sections))
+            sections = CLASS_REGEX.split(sections)
 
         classes = filter(None, map(class_from_path, sections))
         sections = (clazz(i) for i, clazz in enumerate(classes))

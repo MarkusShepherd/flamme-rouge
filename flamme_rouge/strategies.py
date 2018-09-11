@@ -4,8 +4,6 @@
 
 import logging
 
-from random import shuffle
-
 from .cards import EXHAUSTION_CARD
 from .teams import Regular, Rouleur, Sprinteur, Team
 from .utils import input_int
@@ -91,18 +89,15 @@ class Peloton(Team):
     ''' peloton team '''
 
     def __init__(self, name=None, **kwargs):
-        self.leader = Rouleur(team=self, hand_size=1)
-        self.dummy = Rouleur(team=self, hand_size=1)
+        self.leader = Rouleur(
+            team=self, deck=(0, 0, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), hand_size=1)
+        self.dummy = Rouleur(team=self, deck=(), hand_size=1)
 
         kwargs['cyclists'] = (self.leader, self.dummy)
         kwargs['exhaustion'] = False
         kwargs['order'] = 0
 
         super().__init__(name=name or 'Peloton', **kwargs)
-
-        self.leader.deck.extend((0, 0))
-        shuffle(self.leader.deck)
-        self.dummy.deck = []
 
         self.curr_card = None
 
@@ -146,19 +141,21 @@ class Peloton(Team):
         return card
 
 
-class Muscle(Regular):
+class Muscle(Team):
     ''' muscle team '''
 
     def __init__(self, name=None, **kwargs):
+        kwargs['cyclists'] = (
+            Sprinteur(
+                team=self,
+                deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 9, 9, 9),
+                hand_size=1),
+            Rouleur(team=self, hand_size=1),
+        )
         kwargs['exhaustion'] = False
         kwargs['order'] = 1
-        kwargs['hand_size'] = 1
 
         super().__init__(name=name or 'Muscle', **kwargs)
-
-        for cyclist in self.cyclists:
-            if isinstance(cyclist, Sprinteur):
-                cyclist.deck.append(5)
 
     def starting_positions(self, game):
         return _first_available(game, self.cyclists, lambda x: not isinstance(x, Sprinteur))
