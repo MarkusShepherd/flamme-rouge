@@ -2,5 +2,5 @@ colorama
 gym
 keras
 keras-rl
-tensorflow
+# tensorflow
 termcolor

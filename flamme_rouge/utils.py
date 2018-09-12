@@ -4,6 +4,7 @@
 
 import logging
 
+from enum import Enum
 from functools import lru_cache
 from importlib import import_module
 from itertools import tee
@@ -89,3 +90,33 @@ def class_from_path(path):
         LOGGER.exception(exc)
 
     return None
+
+
+class OrderedEnum(Enum):
+    ''' ordered enum '''
+
+    @property
+    def value_comp(self):
+        ''' the value used for comparison '''
+        return self.value
+
+    #pylint: disable=comparison-with-callable
+    def __ge__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value_comp >= other.value_comp
+        return NotImplemented
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value_comp > other.value_comp
+        return NotImplemented
+
+    def __le__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value_comp <= other.value_comp
+        return NotImplemented
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value_comp < other.value_comp
+        return NotImplemented

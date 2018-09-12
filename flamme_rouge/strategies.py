@@ -4,7 +4,7 @@
 
 import logging
 
-from .cards import EXHAUSTION_CARD
+from .cards import EXHAUSTION_VALUE
 from .teams import Regular, Rouleur, Sprinteur, Team
 from .utils import input_int
 
@@ -35,7 +35,7 @@ class Human(Regular):
 
         for cyclist in self.cyclists:
             cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
-            cyclist.deck.extend((EXHAUSTION_CARD,) * cards)
+            cyclist.deck.extend((EXHAUSTION_VALUE,) * cards)
 
     def starting_positions(self, game):
         sections = game.track.sections[:game.track.start]

@@ -6,11 +6,13 @@ import logging
 import math
 
 from random import choice, shuffle
+from typing import Tuple
 
 from termcolor import colored
 
+from .actions import FRAction, SelectCardAction, SelectCyclistAction
 from .const import COLORS
-from .cards import EXHAUSTION_CARD
+from .cards import EXHAUSTION_VALUE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class Cyclist:
         self.discard_hand()
         self.hand = [card for card in (self._draw() for _ in range(size)) if card is not None]
         if not self.hand:
-            self.hand = [EXHAUSTION_CARD]
+            self.hand = [EXHAUSTION_VALUE]
 
     def select_card(self, value):
         ''' select a card from hand '''
@@ -116,6 +118,11 @@ class Cyclist:
         if self.hand:
             self.discard_pile.extend(self.hand)
         self.hand = None
+
+    def ahead_of(
+            self, other: 'flamme_rouge.teams.Cyclist', track: 'flamme_rouge.tracks.Track') -> bool:
+        ''' True if this cyclist is ahead of the other cyclist on the track else False '''
+        return track.compare(self, other) > 0
 
     def __str__(self):
         if self._string is not None:
@@ -152,6 +159,24 @@ class Team:
         for cyclist in self.cyclists:
             cyclist.team = self
             cyclist.colors = cyclist.colors or self.colors
+
+    @property
+    def available_actions(self) -> Tuple[FRAction]:
+        ''' available actions '''
+
+        cyclists = [c for c in self.cyclists if c.curr_card is None]
+
+        if not cyclists:
+            return ()
+
+        cyclists_drawn = [c for c in cyclists if c.hand is not None]
+
+        if cyclists_drawn:
+            assert len(cyclists_drawn) == 1
+            cyclist = cyclists_drawn[0]
+            return tuple(SelectCardAction(cyclist, card) for card in cyclist.hand)
+
+        return tuple(map(SelectCyclistAction, cyclists))
 
     def starting_positions(self, game):
         ''' select starting positions '''

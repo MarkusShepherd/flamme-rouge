@@ -7,7 +7,7 @@ import re
 
 from collections import deque
 
-from .cards import EXHAUSTION_CARD
+from .cards import EXHAUSTION_VALUE
 from .utils import class_from_path, window
 
 LOGGER = logging.getLogger(__name__)
@@ -196,8 +196,18 @@ class Track:
 
         return start
 
-    def move_cyclist(self, cyclist, value, min_speed=False):
+    def move_cyclist(self, cyclist, card, min_speed=False):
         ''' move cyclists '''
+
+        if isinstance(card, int):
+            value = card
+        elif cyclist.team is None:
+            value = card.value_front
+        else:
+            others = (c for c in cyclist.team.cyclists if c is not cyclist)
+            value = (
+                card.value_behind if any(c.ahead_of(cyclist, self) for c in others)
+                else card.value_front)
 
         for pos, section in enumerate(self.sections):
             if cyclist not in section.cyclists:
@@ -229,7 +239,7 @@ class Track:
                 for cyclist in sec0.cyclists:
                     if not cyclist.team or cyclist.team.exhaustion:
                         LOGGER.info('🚴 <%s> gets exhausted', cyclist)
-                        cyclist.discard(EXHAUSTION_CARD)
+                        cyclist.discard(EXHAUSTION_VALUE)
 
     def leading(self):
         ''' leading cyclist '''
@@ -260,6 +270,16 @@ class Track:
         for section in self.sections:
             section.reset()
         return self
+
+    def compare(self, cyclist_1, cyclist_2):
+        ''' returns +1 if cyclist_1 is ahead else -1 '''
+
+        for cyclist in self.cyclists():
+            if cyclist == cyclist_1:
+                return +1
+            if cyclist == cyclist_2:
+                return -1
+        raise RuntimeError(f'unable to find either of {cyclist_1} or {cyclist_2}')
 
     def __str__(self):
         start = next(self.non_empty(), None)
