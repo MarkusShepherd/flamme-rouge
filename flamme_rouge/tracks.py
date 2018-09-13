@@ -38,7 +38,7 @@ class Section:
         self._cyclists = deque(maxlen=lanes)
 
     @property
-    def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist']:
+    def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist', ...]:
         ''' cyclists '''
 
         return tuple(self._cyclists)
@@ -179,8 +179,14 @@ class Track:
     def __len__(self) -> int:
         return len(self.sections)
 
+    def __getitem__(self, key) -> Section:
+        return self.sections[key]
+
     def __iter__(self) -> Iterator[Section]:
         return iter(self.sections)
+
+    def __reversed__(self) -> Iterator[Section]:
+        return reversed(self.sections)
 
     @property
     def available_start(self) -> List[Section]:

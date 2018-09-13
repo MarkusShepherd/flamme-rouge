@@ -161,7 +161,7 @@ class Team:
             cyclist.colors = cyclist.colors or self.colors
 
     @property
-    def available_actions(self) -> Tuple[Action]:
+    def available_actions(self) -> Tuple[Action, ...]:
         ''' available actions '''
 
         cyclists = [c for c in self.cyclists if c.curr_card is None]
