@@ -61,6 +61,7 @@ class Section:
         if self.full:
             return False
         self._cyclists.append(cyclist)
+        cyclist.section = self
         return True
 
     def remove_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
@@ -71,6 +72,9 @@ class Section:
             return True
         except ValueError:
             pass
+        finally:
+            if cyclist.section == self:
+                cyclist.section = None
         return False
 
     def reset(self) -> 'Section':

@@ -85,6 +85,7 @@ class Game:
     @property
     def active_teams(self) -> Tuple['flamme_rouge.teams.Team', ...]:
         ''' currently active teams '''
+
         if self.phase is Phase.FINISH:
             return ()
 
@@ -93,7 +94,7 @@ class Game:
             for team in self.teams:
                 if any(c not in cyclists for c in team.cyclists):
                     return (team,)
-            raise RuntimeError('phase is START, but all cyclists have been placed')
+            return ()
 
         assert self.phase is Phase.RACE
 
@@ -192,9 +193,11 @@ class Game:
     def starting_positions(self) -> None:
         ''' initiate the game '''
 
-        for team in self.teams:
-            for cyclist, section in team.starting_positions(self).items():
-                section.add_cyclist(cyclist)
+        while self.phase is Phase.START:
+            team = self.active_teams[0]
+            cyclist, section = team.starting_position(self)
+            action = SelectStartPositionAction(cyclist, section.position)
+            self.take_action(team, action)
 
         LOGGER.info('starting positions:')
         LOGGER.info(self)

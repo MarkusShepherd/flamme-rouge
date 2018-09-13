@@ -6,7 +6,7 @@ import logging
 import math
 
 from random import choice, shuffle
-from typing import Tuple
+from typing import Optional, Tuple
 
 from termcolor import colored
 
@@ -25,6 +25,7 @@ class Cyclist:
     hand = None
     discard_pile = None
     curr_card = None
+    section: Optional['flamme_rouge.tracks.Section']
 
     time = 0
     finished = False
@@ -51,6 +52,7 @@ class Cyclist:
         self.hand = None
         self.discard_pile = []
         self.curr_card = None
+        self.section = None
         self.time = 0
         self.finished = False
         return self
@@ -178,21 +180,15 @@ class Team:
 
         return tuple(map(SelectCyclistAction, cyclists))
 
-    def starting_positions(self, game):
+    def starting_position(
+            self,
+            game: 'flamme_rouge.core.Game',
+        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
         ''' select starting positions '''
 
-        result = {}
-
-        available = [
-            section for section in game.track.sections[:game.track.start] if not section.full]
-
-        for cyclist in self.cyclists:
-            section = choice(available)
-            result[cyclist] = section
-            if len(section.cyclists) + 1 >= section.lanes:
-                available.remove(section)
-
-        return result
+        cyclists = [c for c in self.cyclists if c.section is None]
+        assert cyclists
+        return choice(cyclists), choice(game.track.available_start)
 
     def available_cyclists(self):
         ''' available cyclist this round '''

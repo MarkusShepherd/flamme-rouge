@@ -7,7 +7,7 @@ import logging
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from .cards import EXHAUSTION_VALUE
-from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
+from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team, Tuple
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)
@@ -38,48 +38,48 @@ class Human(Regular):
             cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
             cyclist.deck.extend((EXHAUSTION_VALUE,) * cards)
 
-    def starting_positions(
+    def _select_cyclist(self, cyclists: Optional[Sequence[Cyclist]] = None) -> Cyclist:
+        cyclists = self.cyclists if cyclists is None else cyclists
+
+        if len(cyclists) < 2:
+            return cyclists[0] if cyclists else None
+
+        string = ', '.join(f'{cyclist} ({pos})' for pos, cyclist in enumerate(cyclists))
+        prompt = f'Choose a cyclist: {string} '
+        choice = input_int(prompt, lower=0, upper=len(cyclists) - 1)
+        return cyclists[choice]
+
+    def starting_position(
             self,
             game: 'flamme_rouge.core.Game',
-        ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
+        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
         sections = game.track.sections[:game.track.start]
 
-        print('currently chosen starting positions:')
+        print('Currently chosen starting positions:')
         print('\n'.join(map(str, sections)))
 
-        result = {}
+        cyclists = [c for c in self.cyclists if c.section is None]
+        cyclist = self._select_cyclist(cyclists)
 
         available = game.track.available_start
 
         lower = min(section.position for section in available)
         upper = max(section.position for section in available)
 
-        for cyclist in self.cyclists:
-            section = None
+        section = None
 
-            while section is None:
-                choice = input_int(
-                    f'Choose position for your {cyclist}: ', lower=lower, upper=upper)
-                sections = [section for section in available if section.position == choice]
-                if sections:
-                    section = sections[0]
+        while section is None:
+            choice = input_int(
+                f'Choose position for your {cyclist}: ', lower=lower, upper=upper)
+            sections = [section for section in available if section.position == choice]
+            if sections:
+                section = sections[0]
 
-            result[cyclist] = section
-            if len(section.cyclists) + 1 >= section.lanes:
-                available.remove(section)
-
-        return result
+        return cyclist, section
 
     def next_cyclist(self, game=None):
         available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
-
-        if len(available) < 2:
-            return available[0] if available else None
-
-        cyclists = ', '.join(f'{cyclist} ({pos})' for pos, cyclist in enumerate(available))
-        prompt = f'Choose the next cyclist: {cyclists} '
-        choice = input_int(prompt, lower=0, upper=len(available) - 1)
-        return available[choice]
+        return self._select_cyclist(available)
 
     def choose_card(self, cyclist, game=None):
         while True:
@@ -104,9 +104,18 @@ class Peloton(Team):
         super().__init__(name=name or 'Peloton', **kwargs)
 
         self.curr_card = None
+        self._starting_positions = None
 
-    def starting_positions(self, game):
-        return _first_available(game, self.cyclists)
+    def starting_position(
+            self,
+            game: 'flamme_rouge.core.Game',
+        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+        if self._starting_positions is None:
+            self._starting_positions = _first_available(game, self.cyclists)
+        for cyclist in self.cyclists:
+            if cyclist.section is None:
+                return cyclist, self._starting_positions[cyclist]
+        raise RuntimeError('all cyclists have been placed')
 
     def next_cyclist(self, game=None):
         return (
@@ -161,5 +170,16 @@ class Muscle(Team):
 
         super().__init__(name=name or 'Muscle', **kwargs)
 
-    def starting_positions(self, game):
-        return _first_available(game, self.cyclists, lambda x: not isinstance(x, Sprinteur))
+        self._starting_positions = None
+
+    def starting_position(
+            self,
+            game: 'flamme_rouge.core.Game',
+        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+        if self._starting_positions is None:
+            self._starting_positions = _first_available(
+                game, self.cyclists, lambda x: not isinstance(x, Sprinteur))
+        for cyclist in self.cyclists:
+            if cyclist.section is None:
+                return cyclist, self._starting_positions[cyclist]
+        raise RuntimeError('all cyclists have been placed')
