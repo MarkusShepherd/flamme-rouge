@@ -27,7 +27,7 @@ class FRCard(OrderedEnum):
         self.exhaustion = exhaustion
 
     @property
-    def value_comp(self):
+    def value_comp(self) -> tuple:
         return (
             self not in (FRCard.EXHAUSTION, FRCard.ATTACK),
             self.value_front,

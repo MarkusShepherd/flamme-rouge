@@ -6,8 +6,9 @@ import logging
 import re
 
 from collections import deque
+from typing import Generator, Iterable, Iterator, List, Optional, Tuple, Union
 
-from .cards import EXHAUSTION_VALUE
+from .cards import EXHAUSTION_VALUE, FRCard
 from .utils import class_from_path, window
 
 LOGGER = logging.getLogger(__name__)
@@ -20,7 +21,14 @@ class Section:
 
     LANE_STR_WIDTH = 20
 
-    def __init__(self, position, lanes=2, slipstream=True, min_speed=None, max_speed=None):
+    def __init__(
+            self,
+            position: int,
+            lanes: int = 2,
+            slipstream: bool = True,
+            min_speed: Optional[int] = None,
+            max_speed: Optional[int] = None,
+        ):
         self.position = position
         self.lanes = lanes
         self.slipstream = slipstream
@@ -30,30 +38,32 @@ class Section:
         self._cyclists = deque(maxlen=lanes)
 
     @property
-    def cyclists(self):
+    def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist']:
         ''' cyclists '''
 
         return tuple(self._cyclists)
 
-    def empty(self):
+    @property
+    def empty(self) -> bool:
         ''' true if section is empty '''
 
         return not self._cyclists
 
-    def full(self):
+    @property
+    def full(self) -> bool:
         ''' true if section is filled to capacity '''
 
         return len(self._cyclists) >= self.lanes
 
-    def add_cyclist(self, cyclist):
+    def add_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
         ''' add a rider to the section '''
 
-        if self.full():
+        if self.full:
             return False
         self._cyclists.append(cyclist)
         return True
 
-    def remove_cyclist(self, cyclist):
+    def remove_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
         ''' remove a rider from this section '''
 
         try:
@@ -63,13 +73,13 @@ class Section:
             pass
         return False
 
-    def reset(self):
+    def reset(self) -> 'Section':
         ''' reset this section '''
 
         self._cyclists = deque(maxlen=self.lanes)
         return self
 
-    def __str__(self):
+    def __str__(self) -> str:
         total = (self.LANE_STR_WIDTH + 1) * self.lanes - 1
         left = (total - 5) // 2
         right = total - left - 5
@@ -96,87 +106,101 @@ class Section:
 class Section3(Section):
     ''' 3 lane section '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, lanes=3)
 
 
 class Finish(Section):
     ''' finish section '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, slipstream=False)
 
 
 class Finish3(Section):
     ''' finish section with 3 lanes '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, lanes=3, slipstream=False)
 
 
 class MountainUp(Section):
     ''' up section '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, slipstream=False, max_speed=5)
 
 
 class MountainDown(Section):
     ''' down section '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, min_speed=5)
 
 
 class Supply(Section):
     ''' supply zone section '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, lanes=3, min_speed=4)
 
 
 class Cobblestone1(Section):
     ''' cobblestone with one lane '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, lanes=1, slipstream=False)
 
 
 class Cobblestone2(Section):
     ''' cobblestone with two lanes '''
 
-    def __init__(self, position):
+    def __init__(self, position: int):
         super().__init__(position=position, slipstream=False)
 
 
 class Track:
     ''' track '''
 
-    def __init__(self, sections, start=5, finish=-5, min_players=3, max_players=4):
+    def __init__(
+            self,
+            sections: Iterable[Section],
+            start: int = 5,
+            finish: int = -5,
+            min_players: int = 3,
+            max_players: int = 4,
+        ):
         self.sections = tuple(sections)
         self.start = start
         self.finish = finish if finish > 0 else len(self) + finish
         self.min_players = min_players
         self.max_players = max_players
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.sections)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Section]:
         return iter(self.sections)
 
-    def available_start(self):
+    @property
+    def available_start(self) -> List[Section]:
         ''' available starting positions '''
 
-        return [section for section in self.sections[:self.start] if not section.full()]
+        return [section for section in self.sections[:self.start] if not section.full]
 
-    def cyclists(self):
+    def cyclists(self) -> Generator['flamme_rouge.teams.Cyclist', None, None]:
         ''' generator of riders from first to last '''
 
         for section in reversed(self.sections):
             yield from section.cyclists
 
-    def _move_cyclist(self, cyclist, value, start, min_speed=False):
+    def _move_cyclist(
+            self,
+            cyclist: 'flamme_rouge.teams.Cyclist',
+            value: int,
+            start: int,
+            min_speed: bool = False,
+        ) -> int:
         min_speed_value = self.sections[start].min_speed
         value = value if not min_speed or min_speed_value is None else max(value, min_speed_value)
 
@@ -196,7 +220,12 @@ class Track:
 
         return start
 
-    def move_cyclist(self, cyclist, card, min_speed=False):
+    def move_cyclist(
+            self,
+            cyclist: 'flamme_rouge.teams.Cyclist',
+            card: Union[int, FRCard],
+            min_speed: bool = False,
+        ) -> int:
         ''' move cyclists '''
 
         if isinstance(card, int):
@@ -217,13 +246,13 @@ class Track:
                 section.remove_cyclist(cyclist)
             return end - pos
 
-    def do_slipstream(self):
+    def do_slipstream(self) -> None:
         ''' move cyclists through slipstream '''
 
         while True:
             for sec in window(self.sections, 3):
                 if (all(s.slipstream for s in sec)
-                        and sec[0].cyclists and sec[1].empty() and sec[2].cyclists):
+                        and sec[0].cyclists and sec[1].empty and sec[2].cyclists):
                     for cyclist in sec[0].cyclists:
                         LOGGER.info('🚴 <%s> receives slipstream', cyclist)
                         self.move_cyclist(cyclist, 1)
@@ -231,47 +260,45 @@ class Track:
             else:
                 return # all slipstreams done
 
-    def do_exhaustion(self):
+    def do_exhaustion(self) -> None:
         ''' add exhaustion cards '''
 
         for sec0, sec1 in window(self.sections[:self.finish + 1], 2):
-            if sec1.empty():
+            if sec1.empty:
                 for cyclist in sec0.cyclists:
                     if not cyclist.team or cyclist.team.exhaustion:
                         LOGGER.info('🚴 <%s> gets exhausted', cyclist)
                         cyclist.discard(EXHAUSTION_VALUE)
 
-    def leading(self):
+    @property
+    def leading(self) -> Optional['flamme_rouge.teams.Cyclist']:
         ''' leading cyclist '''
+        return next(self.cyclists(), None)
 
-        for section in reversed(self.sections):
-            if not section.empty():
-                return section.cyclists[0]
-
-        return None
-
-    def non_empty(self):
+    def non_empty(self) -> Generator[Section, None, None]:
         ''' non-empty sections '''
-
         for section in self.sections:
-            if not section.empty():
+            if not section.empty:
                 yield section
 
-    def finished(self, all_cyclists=False):
+    def finished(self, all_cyclists: bool = False) -> bool:
         ''' game finished '''
-
         if all_cyclists:
-            return all(section.empty() for section in self.sections[:self.finish])
-        return any(not section.empty() for section in self.sections[self.finish:])
+            return all(section.empty for section in self.sections[:self.finish])
+        return any(not section.empty for section in self.sections[self.finish:])
 
-    def reset(self):
+    def reset(self) -> 'Track':
         ''' reset this track '''
 
         for section in self.sections:
             section.reset()
         return self
 
-    def compare(self, cyclist_1, cyclist_2):
+    def compare(
+            self,
+            cyclist_1: 'flamme_rouge.teams.Cyclist',
+            cyclist_2: 'flamme_rouge.teams.Cyclist',
+        ) -> int:
         ''' returns +1 if cyclist_1 is ahead else -1 '''
 
         for cyclist in self.cyclists():
@@ -281,7 +308,7 @@ class Track:
                 return -1
         raise RuntimeError(f'unable to find either of {cyclist_1} or {cyclist_2}')
 
-    def __str__(self):
+    def __str__(self) -> str:
         start = next(self.non_empty(), None)
         start = start.position - 1 if start is not None and start.position else 0
         finish = max(start, self.finish)
@@ -290,10 +317,10 @@ class Track:
         return '\n'.join(map(str, sections))
 
     @classmethod
-    def from_sections(cls, sections, **kwargs):
+    def from_sections(cls, sections: Union[str, Iterable[str]], **kwargs) -> 'Track':
         ''' create a track from a sequence of sections '''
 
-        if isinstance(sections, (str, bytes)):
+        if isinstance(sections, str):
             sections = CLASS_REGEX.split(sections)
 
         classes = filter(None, map(class_from_path, sections))

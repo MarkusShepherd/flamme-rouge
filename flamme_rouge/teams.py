@@ -184,7 +184,7 @@ class Team:
         result = {}
 
         available = [
-            section for section in game.track.sections[:game.track.start] if not section.full()]
+            section for section in game.track.sections[:game.track.start] if not section.full]
 
         for cyclist in self.cyclists:
             section = choice(available)

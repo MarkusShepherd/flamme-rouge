@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
 
-''' core classes '''
+''' strategies '''
 
 import logging
 
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
+
 from .cards import EXHAUSTION_VALUE
-from .teams import Regular, Rouleur, Sprinteur, Team
+from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
 from .utils import input_int
 
 LOGGER = logging.getLogger(__name__)
 
 
-def _available_start(game):
-    sections = game.track.sections[:game.track.start]
-    return [section for section in sections if not section.full()]
-
-
-def _first_available(game, cyclists, key=None):
-    available = reversed(_available_start(game))
+def _first_available(
+        game: 'flamme_rouge.core.FRGame',
+        cyclists: Iterable[Cyclist],
+        key: Optional[Callable[[Cyclist], Any]] = None,
+    ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
+    available = reversed(game.track.available_start)
     cyclists = cyclists if key is None else sorted(cyclists, key=key)
     return dict(zip(cyclists, available))
 
@@ -25,7 +26,7 @@ def _first_available(game, cyclists, key=None):
 class Human(Regular):
     ''' human input '''
 
-    def __init__(self, name, handicap=0, **kwargs):
+    def __init__(self, name: str, handicap: Union[int, Sequence[int]] = 0, **kwargs):
         kwargs['exhaustion'] = True
         super().__init__(name=name, **kwargs)
 
@@ -37,7 +38,10 @@ class Human(Regular):
             cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
             cyclist.deck.extend((EXHAUSTION_VALUE,) * cards)
 
-    def starting_positions(self, game):
+    def starting_positions(
+            self,
+            game: 'flamme_rouge.core.FRGame',
+        ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
         sections = game.track.sections[:game.track.start]
 
         print('currently chosen starting positions:')
@@ -45,7 +49,7 @@ class Human(Regular):
 
         result = {}
 
-        available = _available_start(game)
+        available = game.track.available_start
 
         lower = min(section.position for section in available)
         upper = max(section.position for section in available)

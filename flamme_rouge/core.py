@@ -7,7 +7,7 @@ import logging
 from enum import Enum, auto
 from itertools import product
 from random import shuffle
-from typing import Iterable, Tuple
+from typing import Iterable, Optional, Tuple
 
 from .actions import FRAction, SelectStartPositionAction
 
@@ -19,10 +19,10 @@ class FRPhase(Enum):
 
     START = auto()
     RACE = auto()
-    FINSH = auto()
+    FINISH = auto()
 
     @property
-    def next_phase(self):
+    def next_phase(self) -> 'FRPhase':
         ''' phase after this '''
         return FRPhase(self.value + 1)
 
@@ -45,14 +45,14 @@ class FRGame:
         return self.track.finished()
 
     @property
-    def winner(self) -> 'flamme_rouge.teams.Cyclist':
+    def winner(self) -> Optional['flamme_rouge.teams.Cyclist']:
         ''' winner of the game if any, else None '''
-        return next(self.track.cyclists()) if self.finished else None
+        return self.track.leading if self.finished else None
 
     @property
     def active_teams(self) -> Tuple['flamme_rouge.teams.Team']:
         ''' currently active teams '''
-        if self.phase is FRPhase.FINSH:
+        if self.phase is FRPhase.FINISH:
             return ()
 
         if self.phase is FRPhase.START:
@@ -70,7 +70,7 @@ class FRGame:
     def _available_actions_start(self, team: 'flamme_rouge.teams.Team') -> Tuple[FRAction]:
         placed = frozenset(self.track.cyclists())
         cyclists = (c for c in team.cyclists if c not in placed)
-        sections = self.track.available_start()
+        sections = self.track.available_start
 
         return tuple(
             SelectStartPositionAction(c, s.position) for c, s in product(cyclists, sections))
@@ -87,7 +87,7 @@ class FRGame:
         if self.phase is FRPhase.RACE:
             return team.available_actions
 
-        assert self.phase is FRPhase.FINSH
+        assert self.phase is FRPhase.FINISH
 
         return ()
 

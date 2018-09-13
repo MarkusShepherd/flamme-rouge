@@ -77,7 +77,7 @@ def _main():
     game = FRGame(track, teams)
     game.play()
 
-    LOGGER.info('winner: %s', game.track.leading())
+    LOGGER.info('winner: %s', game.track.leading)
 
 
 if __name__ == '__main__':
