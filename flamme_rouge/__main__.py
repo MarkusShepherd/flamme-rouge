@@ -12,7 +12,7 @@ from random import choice
 
 from .tracks import Track, ALL_TRACKS
 from .const import COLORS
-from .core import FRGame
+from .core import Game
 from .strategies import Human, Muscle, Peloton
 from .utils import class_from_path
 
@@ -74,7 +74,7 @@ def _main():
         for i, name, colors in zip_longest(
             range(num_players), args.names, args.colors[:num_players]))
 
-    game = FRGame(track, teams)
+    game = Game(track, teams)
     game.play()
 
     LOGGER.info('winner: %s', game.track.leading)

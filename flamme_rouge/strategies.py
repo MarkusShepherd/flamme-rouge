@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _first_available(
-        game: 'flamme_rouge.core.FRGame',
+        game: 'flamme_rouge.core.Game',
         cyclists: Iterable[Cyclist],
         key: Optional[Callable[[Cyclist], Any]] = None,
     ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
@@ -40,7 +40,7 @@ class Human(Regular):
 
     def starting_positions(
             self,
-            game: 'flamme_rouge.core.FRGame',
+            game: 'flamme_rouge.core.Game',
         ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
         sections = game.track.sections[:game.track.start]
 

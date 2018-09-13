@@ -10,7 +10,7 @@ from typing import Tuple
 
 from termcolor import colored
 
-from .actions import FRAction, SelectCardAction, SelectCyclistAction
+from .actions import Action, SelectCardAction, SelectCyclistAction
 from .const import COLORS
 from .cards import EXHAUSTION_VALUE
 
@@ -161,7 +161,7 @@ class Team:
             cyclist.colors = cyclist.colors or self.colors
 
     @property
-    def available_actions(self) -> Tuple[FRAction]:
+    def available_actions(self) -> Tuple[Action]:
         ''' available actions '''
 
         cyclists = [c for c in self.cyclists if c.curr_card is None]

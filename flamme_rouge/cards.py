@@ -7,7 +7,7 @@ from .utils import OrderedEnum
 
 EXHAUSTION_VALUE = 2
 
-class FRCard(OrderedEnum):
+class Card(OrderedEnum):
     ''' cards in Flamme Rouge '''
 
     CARD_2 = (2, 2, False)
@@ -29,7 +29,7 @@ class FRCard(OrderedEnum):
     @property
     def value_comp(self) -> tuple:
         return (
-            self not in (FRCard.EXHAUSTION, FRCard.ATTACK),
+            self not in (Card.EXHAUSTION, Card.ATTACK),
             self.value_front,
             self.value_behind,
             not self.exhaustion)

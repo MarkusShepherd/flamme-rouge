@@ -8,7 +8,7 @@ import re
 from collections import deque
 from typing import Generator, Iterable, Iterator, List, Optional, Tuple, Union
 
-from .cards import EXHAUSTION_VALUE, FRCard
+from .cards import EXHAUSTION_VALUE, Card
 from .utils import class_from_path, window
 
 LOGGER = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ class Track:
     def move_cyclist(
             self,
             cyclist: 'flamme_rouge.teams.Cyclist',
-            card: Union[int, FRCard],
+            card: Union[int, Card],
             min_speed: bool = False,
         ) -> int:
         ''' move cyclists '''

@@ -7,14 +7,14 @@ import logging
 from enum import Enum, auto
 from itertools import product
 from random import shuffle
-from typing import Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
-from .actions import FRAction, SelectStartPositionAction
+from .actions import Action, SelectStartPositionAction
 
 LOGGER = logging.getLogger(__name__)
 
 
-class FRPhase(Enum):
+class Phase(Enum):
     ''' phases of a game '''
 
     START = auto()
@@ -22,16 +22,17 @@ class FRPhase(Enum):
     FINISH = auto()
 
     @property
-    def next_phase(self) -> 'FRPhase':
+    def next_phase(self) -> 'Phase':
         ''' phase after this '''
-        return FRPhase(self.value + 1)
+        return Phase(self.value + 1)
 
 
-class FRGame:
+class Game:
     ''' Flamme Rouge game '''
 
     rounds_played: int = 0
-    phase: FRPhase = FRPhase.START
+    phase: Phase = Phase.START
+    _actions: Dict['flamme_rouge.teams.Team', Action]
 
     def __init__(
             self, track: 'flamme_rouge.tracks.Track', teams: Iterable['flamme_rouge.teams.Team']):
@@ -52,22 +53,22 @@ class FRGame:
     @property
     def active_teams(self) -> Tuple['flamme_rouge.teams.Team']:
         ''' currently active teams '''
-        if self.phase is FRPhase.FINISH:
+        if self.phase is Phase.FINISH:
             return ()
 
-        if self.phase is FRPhase.START:
+        if self.phase is Phase.START:
             cyclists = frozenset(self.track.cyclists())
             for team in self.teams:
                 if any(c not in cyclists for c in team.cyclists):
                     return (team,)
             raise RuntimeError('phase is START, but all cyclists have been placed')
 
-        assert self.phase is FRPhase.RACE
+        assert self.phase is Phase.RACE
 
         return tuple(
             team for team in self.teams if any(c.curr_card is None for c in team.cyclists))
 
-    def _available_actions_start(self, team: 'flamme_rouge.teams.Team') -> Tuple[FRAction]:
+    def _available_actions_start(self, team: 'flamme_rouge.teams.Team') -> Tuple[Action]:
         placed = frozenset(self.track.cyclists())
         cyclists = (c for c in team.cyclists if c not in placed)
         sections = self.track.available_start
@@ -75,23 +76,23 @@ class FRGame:
         return tuple(
             SelectStartPositionAction(c, s.position) for c, s in product(cyclists, sections))
 
-    def available_actions(self, team: 'flamme_rouge.teams.Team') -> Tuple[FRAction]:
+    def available_actions(self, team: 'flamme_rouge.teams.Team') -> Tuple[Action]:
         ''' available actions to that team '''
 
         if team not in self.active_teams:
             return ()
 
-        if self.phase is FRPhase.START:
+        if self.phase is Phase.START:
             return self._available_actions_start(team)
 
-        if self.phase is FRPhase.RACE:
+        if self.phase is Phase.RACE:
             return team.available_actions
 
-        assert self.phase is FRPhase.FINISH
+        assert self.phase is Phase.FINISH
 
         return ()
 
-    def reset(self) -> 'FRGame':
+    def reset(self) -> 'Game':
         ''' reset this game '''
 
         self.track = self.track.reset()
@@ -99,7 +100,7 @@ class FRGame:
         shuffle(teams)
         teams.sort(key=lambda team: team.order)
         self.teams = tuple(teams)
-        self.phase = FRPhase.START
+        self.phase = Phase.START
         self.rounds_played = 0
         return self
 
