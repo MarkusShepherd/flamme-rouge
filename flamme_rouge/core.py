@@ -205,37 +205,21 @@ class Game:
     def play_round(self) -> None:
         ''' play a round '''
 
-        for team in self.teams:
+        while self.active_teams:
+            team = self.active_teams[0]
             for cyclist in team.order_cyclists(self):
-                cyclist.draw_hand()
-                hand = tuple(cyclist.hand)
+                self.take_action(team, SelectCyclistAction(cyclist))
+                hand = ', '.join(map(str, cyclist.hand))
                 card = team.choose_card(cyclist, self)
-                cyclist.select_card(card)
-                cyclist.discard_hand()
-                LOGGER.info('🚴 <%s> received hand %s and chose <%d>', cyclist, hand, card)
-
-        for cyclist in self.track.cyclists():
-            planned = cyclist.curr_card
-            actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
-            cyclist.curr_card = None
-            LOGGER.info(
-                '🚴 <%s> planned to move %d and did move %d section(s)',
-                cyclist, planned, actual)
-
-        self.track.do_slipstream()
-        self.track.do_exhaustion()
-
-        self.rounds_played += 1
-
-        LOGGER.info('after %d rounds:', self.rounds_played)
-        LOGGER.info(self)
+                self.take_action(team, SelectCardAction(cyclist, card))
+                LOGGER.info('🚴 <%s> received hand <%s> and chose <%s>', cyclist, hand, card)
 
     def play(self) -> None:
         ''' play the game '''
 
         self.starting_positions()
 
-        while not self.track.finished():
+        while not self.finished:
             self.play_round()
 
     def __str__(self) -> str:
