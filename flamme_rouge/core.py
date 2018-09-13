@@ -6,7 +6,7 @@ import logging
 
 from enum import Enum, auto
 from itertools import product
-from random import shuffle
+from random import choice, shuffle
 from typing import Iterable, Optional, Tuple
 
 from .actions import (
@@ -190,37 +190,27 @@ class Game:
         LOGGER.info('after %d rounds:', self.rounds_played)
         LOGGER.info(self)
 
-    def starting_positions(self) -> None:
-        ''' initiate the game '''
+    def play_action(self) -> Phase:
+        ''' play an action '''
 
-        while self.phase is Phase.START:
-            team = self.active_teams[0]
-            cyclist, section = team.starting_position(self)
-            action = SelectStartPositionAction(cyclist, section.position)
-            self.take_action(team, action)
+        teams = self.active_teams
 
-        LOGGER.info('starting positions:')
-        LOGGER.info(self)
+        if not teams:
+            return self.phase
 
-    def play_round(self) -> None:
-        ''' play a round '''
+        team = choice(teams)
+        action = team.select_action(self)
 
-        while self.active_teams:
-            team = self.active_teams[0]
-            for cyclist in team.order_cyclists(self):
-                self.take_action(team, SelectCyclistAction(cyclist))
-                hand = ', '.join(map(str, cyclist.hand))
-                card = team.choose_card(cyclist, self)
-                self.take_action(team, SelectCardAction(cyclist, card))
-                LOGGER.info('🚴 <%s> received hand <%s> and chose <%s>', cyclist, hand, card)
+        if action is not None:
+            return self.take_action(team, action)
+
+        return self.phase
 
     def play(self) -> None:
         ''' play the game '''
 
-        self.starting_positions()
-
         while not self.finished:
-            self.play_round()
+            self.play_action()
 
     def __str__(self) -> str:
         return str(self.track)

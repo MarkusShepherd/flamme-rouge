@@ -226,6 +226,8 @@ class Track:
         for pos in range(min(start + value, len(self) - 1), start, -1):
             section = self.sections[pos]
             if section.add_cyclist(cyclist):
+                if pos >= self.finish:
+                    cyclist.finished = True
                 return pos
 
         return start

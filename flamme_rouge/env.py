@@ -22,7 +22,6 @@ class FREnv(Env):
 
     def reset(self):
         self.game.reset()
-        self.game.starting_positions()
         return self.observation
 
     def render(self, mode='human', close=False):

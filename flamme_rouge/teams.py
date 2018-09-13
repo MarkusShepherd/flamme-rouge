@@ -10,8 +10,9 @@ from typing import Optional, Tuple
 
 from termcolor import colored
 
-from .actions import Action, SelectCardAction, SelectCyclistAction
+from .actions import Action, SelectCardAction, SelectCyclistAction, SelectStartPositionAction
 from .const import COLORS
+from .core import Phase
 from .cards import EXHAUSTION_VALUE
 
 LOGGER = logging.getLogger(__name__)
@@ -163,22 +164,70 @@ class Team:
             cyclist.colors = cyclist.colors or self.colors
 
     @property
+    def available_cyclists(self) -> Tuple[Cyclist, ...]:
+        ''' available cyclist this round '''
+
+        return tuple(c for c in self.cyclists if not c.finished and c.curr_card is None)
+
+    @property
+    def need_to_select_cyclist(self) -> bool:
+        ''' time to select a cyclist '''
+        return all(c.hand is None for c in self.available_cyclists)
+
+    @property
+    def need_to_select_card(self) -> bool:
+        ''' time to select a card '''
+        return any(c.hand is not None for c in self.available_cyclists)
+
+    @property
+    def cyclist_to_select_card(self) -> Optional[Cyclist]:
+        ''' the cyclist to select a card from hand, if any '''
+        cyclists = [c for c in self.available_cyclists if c.hand is not None]
+        assert len(cyclists) <= 1
+        return cyclists[0] if cyclists else None
+
+    @property
     def available_actions(self) -> Tuple[Action, ...]:
         ''' available actions '''
 
-        cyclists = [c for c in self.cyclists if c.curr_card is None]
+        if self.need_to_select_cyclist:
+            return tuple(map(SelectCyclistAction, self.available_cyclists))
 
-        if not cyclists:
+        if not self.need_to_select_card:
             return ()
 
-        cyclists_drawn = [c for c in cyclists if c.hand is not None]
+        cyclist = self.cyclist_to_select_card
+        assert cyclist is not None
+        return tuple(SelectCardAction(cyclist, card) for card in cyclist.hand)
 
-        if cyclists_drawn:
-            assert len(cyclists_drawn) == 1
-            cyclist = cyclists_drawn[0]
-            return tuple(SelectCardAction(cyclist, card) for card in cyclist.hand)
+    def select_action(self, game: 'flamme_rouge.core.Game') -> Optional[Action]:
+        ''' select the next action '''
 
-        return tuple(map(SelectCyclistAction, cyclists))
+        if game.phase is Phase.FINISH:
+            return None
+
+        if game.phase is Phase.START:
+            cyclist, section = self.starting_position(game)
+            return SelectStartPositionAction(cyclist, section.position)
+
+        assert game.phase is Phase.RACE
+
+        # actions = self.available_actions
+        # if not actions:
+        #     return None
+        # if len(actions) == 1:
+        #     return actions[0]
+
+        if self.need_to_select_cyclist:
+            return SelectCyclistAction(self.next_cyclist(game))
+
+        cyclist = self.cyclist_to_select_card
+
+        if cyclist is not None:
+            card = self.choose_card(cyclist, game)
+            return SelectCardAction(cyclist, card)
+
+        return None
 
     def starting_position(
             self,
@@ -190,18 +239,11 @@ class Team:
         assert cyclists
         return choice(cyclists), choice(game.track.available_start)
 
-    def available_cyclists(self):
-        ''' available cyclist this round '''
-
-        return [
-            cyclist for cyclist in self.cyclists
-            if not cyclist.finished and cyclist.curr_card is None]
-
     #pylint: disable=unused-argument
-    def next_cyclist(self, game=None):
+    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
         ''' select the next cyclist '''
 
-        available = self.available_cyclists()
+        available = self.available_cyclists
         return choice(available) if available else None
 
     def order_cyclists(self, game=None):
