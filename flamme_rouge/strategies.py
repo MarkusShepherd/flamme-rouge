@@ -4,7 +4,7 @@
 
 import logging
 
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence
 
 from .cards import Card
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team, Tuple
@@ -26,17 +26,9 @@ def _first_available(
 class Human(Regular):
     ''' human input '''
 
-    def __init__(self, name: str, handicap: Union[int, Sequence[int]] = 0, **kwargs):
+    def __init__(self, **kwargs):
         kwargs['exhaustion'] = True
-        super().__init__(name=name, **kwargs)
-
-        if isinstance(handicap, int):
-            handicap_spinteur = handicap // 2
-            handicap = (handicap_spinteur, handicap - handicap_spinteur)
-
-        for cyclist in self.cyclists:
-            cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
-            cyclist.deck.extend((Card.EXHAUSTION,) * cards)
+        super().__init__(**kwargs)
 
     def _select_cyclist(self, cyclists: Optional[Sequence[Cyclist]] = None) -> Cyclist:
         cyclists = self.cyclists if cyclists is None else cyclists
@@ -102,12 +94,13 @@ class Peloton(Team):
     _starting_positions: Optional[Dict[Cyclist, 'flamme_rouge.tracks.Section']]
 
     def __init__(self, name: Optional[str] = None, **kwargs):
-        self.leader = Rouleur(team=self, deck=self.attack_deck, hand_size=1)
-        self.dummy = Rouleur(team=self, deck=(), hand_size=1)
+        self.leader = Rouleur(team=self, deck=self.attack_deck)
+        self.dummy = Rouleur(team=self, deck=())
 
         kwargs['cyclists'] = (self.leader, self.dummy)
         kwargs['exhaustion'] = False
         kwargs['order'] = 0
+        kwargs['hand_size'] = 1
 
         super().__init__(name=name or 'Peloton', **kwargs)
 
@@ -152,12 +145,10 @@ class Muscle(Team):
     muscle_deck = Sprinteur.initial_deck + (Card.CARD_5,)
 
     def __init__(self, name: Optional[str] = None, **kwargs):
-        kwargs['cyclists'] = (
-            Sprinteur(team=self, deck=self.muscle_deck, hand_size=1),
-            Rouleur(team=self, hand_size=1),
-        )
+        kwargs['cyclists'] = (Sprinteur(team=self, deck=self.muscle_deck), Rouleur(team=self))
         kwargs['exhaustion'] = False
         kwargs['order'] = 1
+        kwargs['hand_size'] = 1
 
         super().__init__(name=name or 'Muscle', **kwargs)
 

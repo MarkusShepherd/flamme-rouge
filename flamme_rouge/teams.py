@@ -6,7 +6,7 @@ import logging
 import math
 
 from random import choice, shuffle
-from typing import Dict, Generator, List, Iterable, Optional, Tuple, Union
+from typing import Dict, Generator, List, Iterable, Optional, Sequence, Tuple, Union
 
 from termcolor import colored
 
@@ -23,6 +23,7 @@ class Cyclist:
     ''' rider or cyclist '''
 
     initial_deck: Tuple[Card, ...]
+    handicap: Optional[int]
     deck: List[Card]
     hand: Optional[List[Card]]
     discard_pile: List[Card]
@@ -41,9 +42,11 @@ class Cyclist:
             team: Optional['Team'] = None,
             hand_size: int = 4,
             colors: Color = None,
+            handicap: Optional[int] = None,
         ):
         if deck is not None:
             self.initial_deck = tuple(deck)
+        self.handicap = handicap
 
         self.reset()
 
@@ -55,7 +58,8 @@ class Cyclist:
     def reset(self) -> 'Cyclist':
         ''' reset this cyclist '''
 
-        self.deck = list(self.initial_deck)
+        handicap = self.handicap or 0
+        self.deck = list(self.initial_deck) + [Card.EXHAUSTION] * handicap
         shuffle(self.deck)
         self.hand = None
         self.discard_pile = []
@@ -69,6 +73,8 @@ class Cyclist:
     def cards(self) -> Tuple[Card, ...]:
         ''' all cards of this cyclist '''
         result = self.deck + self.discard_pile
+        if self.hand is not None:
+            result.extend(self.hand)
         if self.curr_card is not None:
             result.append(self.curr_card)
         return tuple(sorted(result))
@@ -157,11 +163,14 @@ class Team:
     ''' team '''
 
     def __init__(
-            self, name: str,
+            self,
+            name: str,
             cyclists: Iterable[Cyclist],
             exhaustion: bool = True,
             order: float = math.inf,
             colors: Color = None,
+            handicap: Union[int, Sequence[int]] = 0,
+            hand_size: Optional[int] = None,
         ):
         self.name = name
         self.cyclists = tuple(cyclists)
@@ -169,9 +178,21 @@ class Team:
         self.order = order
         self.colors = colors or {}
 
-        for cyclist in self.cyclists:
+        if isinstance(handicap, int):
+            value, extra = divmod(handicap, len(self.cyclists))
+            self.handicap = (value + 1,) * extra + (value,) * (len(self.cyclists) - extra)
+        else:
+            self.handicap = tuple(handicap)
+
+        assert len(self.handicap) == len(self.cyclists)
+
+        for cyclist, h_cap in zip(self.cyclists, self.handicap):
             cyclist.team = self
             cyclist.colors = cyclist.colors or self.colors
+            cyclist.handicap = h_cap if cyclist.handicap is None else cyclist.handicap
+            cyclist.hand_size = hand_size if hand_size is not None else cyclist.hand_size
+
+        self.reset()
 
     @property
     def available_cyclists(self) -> Tuple[Cyclist, ...]:
@@ -233,7 +254,12 @@ class Team:
         cyclist = self.cyclist_to_select_card
 
         if cyclist is not None:
+            cards = ', '.join(map(str, cyclist.cards))
+            hand = ', '.join(map(str, sorted(cyclist.hand or ())))
             card = self.choose_card(cyclist, game)
+            LOGGER.debug(
+                '🚴 <%s> has cards <%s>, received hand <%s> and selected card <%s>',
+                cyclist, cards, hand, card)
             return SelectCardAction(cyclist, card)
 
         return None
@@ -290,9 +316,6 @@ class Team:
 class Regular(Team):
     ''' team with rouleur and sprinteur '''
 
-    def __init__(self, hand_size: Optional[int] = None, **kwargs):
-        kwargs['cyclists'] = (
-            Sprinteur(team=self, hand_size=hand_size),
-            Rouleur(team=self, hand_size=hand_size),
-        )
+    def __init__(self, **kwargs):
+        kwargs['cyclists'] = (Rouleur(team=self), Sprinteur(team=self))
         super().__init__(**kwargs)
