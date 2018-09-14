@@ -6,35 +6,42 @@ import logging
 import math
 
 from random import choice, shuffle
-from typing import Optional, Tuple
+from typing import Dict, Generator, List, Iterable, Optional, Tuple, Union
 
 from termcolor import colored
 
 from .actions import Action, SelectCardAction, SelectCyclistAction, SelectStartPositionAction
 from .const import COLORS
 from .core import Phase
-from .cards import EXHAUSTION_VALUE
+from .cards import Card
 
 LOGGER = logging.getLogger(__name__)
+Color = Union[Dict[str, str], str, None]
 
 
 class Cyclist:
     ''' rider or cyclist '''
 
-    initial_deck = None
-    deck = None
-    hand = None
-    discard_pile = None
-    curr_card = None
+    initial_deck: Tuple[Card, ...]
+    deck: List[Card]
+    hand: Optional[List[Card]]
+    discard_pile: List[Card]
+    curr_card: Optional[Card]
     section: Optional['flamme_rouge.tracks.Section']
 
-    time = 0
-    finished = False
+    time: int = 0
+    finished: bool = False
 
-    _colors = None
-    _string = None
+    _colors: Dict[str, str]
+    _string: Optional[str] = None
 
-    def __init__(self, deck=None, team=None, hand_size=4, colors=None):
+    def __init__(
+            self,
+            deck: Optional[Iterable[Card]] = None,
+            team: Optional['Team'] = None,
+            hand_size: int = 4,
+            colors: Color = None,
+        ):
         if deck is not None:
             self.initial_deck = tuple(deck)
 
@@ -45,7 +52,7 @@ class Cyclist:
 
         self.colors = colors
 
-    def reset(self):
+    def reset(self) -> 'Cyclist':
         ''' reset this cyclist '''
 
         self.deck = list(self.initial_deck)
@@ -59,35 +66,33 @@ class Cyclist:
         return self
 
     @property
-    def cards(self):
+    def cards(self) -> Tuple[Card, ...]:
         ''' all cards of this cyclist '''
-
         result = self.deck + self.discard_pile
         if self.curr_card is not None:
             result.append(self.curr_card)
-        return sorted(result)
+        return tuple(sorted(result))
 
     @property
-    def colors(self):
+    def colors(self) -> Dict[str, str]:
         ''' print colors '''
-
         return self._colors
 
     @colors.setter
-    def colors(self, value):
+    def colors(self, value: Color):
         self._colors = (
             {} if not value
             else COLORS.get(value.lower(), {}) if isinstance(value, str)
             else value)
 
-    def _draw(self):
+    def _draw(self) -> Optional[Card]:
         if not self.deck:
             self.deck = self.discard_pile
             self.discard_pile = []
             shuffle(self.deck)
         return self.deck.pop(choice(range(len(self.deck)))) if self.deck else None
 
-    def draw_hand(self, size=None):
+    def draw_hand(self, size: Optional[int] = None) -> None:
         ''' draw a new hand '''
 
         size = self.hand_size if size is None else size
@@ -95,14 +100,14 @@ class Cyclist:
         self.discard_hand()
         self.hand = [card for card in (self._draw() for _ in range(size)) if card is not None]
         if not self.hand:
-            self.hand = [EXHAUSTION_VALUE]
+            self.hand = [Card.EXHAUSTION]
 
-    def select_card(self, value):
+    def select_card(self, card: Card) -> bool:
         ''' select a card from hand '''
 
         try:
-            self.hand.remove(value)
-            self.curr_card = value
+            self.hand.remove(card)
+            self.curr_card = card
             return True
 
         except ValueError as exc:
@@ -110,24 +115,25 @@ class Cyclist:
 
         return False
 
-    def discard(self, value):
+    def discard(self, card: Card) -> None:
         ''' add a card to the discard pile '''
+        self.discard_pile.append(card)
 
-        self.discard_pile.append(value)
-
-    def discard_hand(self):
+    def discard_hand(self) -> None:
         ''' discard the entire hand '''
-
         if self.hand:
             self.discard_pile.extend(self.hand)
         self.hand = None
 
     def ahead_of(
-            self, other: 'flamme_rouge.teams.Cyclist', track: 'flamme_rouge.tracks.Track') -> bool:
+            self,
+            other: 'flamme_rouge.teams.Cyclist',
+            track: 'flamme_rouge.tracks.Track',
+        ) -> bool:
         ''' True if this cyclist is ahead of the other cyclist on the track else False '''
         return track.compare(self, other) > 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self._string is not None:
             return self._string
         string = (
@@ -139,20 +145,24 @@ class Cyclist:
 
 class Rouleur(Cyclist):
     ''' rouleur '''
-
-    initial_deck = (3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7)
+    initial_deck = (Card.CARD_3, Card.CARD_4, Card.CARD_5, Card.CARD_6, Card.CARD_7) * 3
 
 
 class Sprinteur(Cyclist):
     ''' sprinteur '''
-
-    initial_deck = (2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 9, 9, 9)
+    initial_deck = (Card.CARD_2, Card.CARD_3, Card.CARD_4, Card.CARD_5, Card.CARD_9) * 3
 
 
 class Team:
     ''' team '''
 
-    def __init__(self, name, cyclists, exhaustion=True, order=math.inf, colors=None):
+    def __init__(
+            self, name: str,
+            cyclists: Iterable[Cyclist],
+            exhaustion: bool = True,
+            order: float = math.inf,
+            colors: Color = None,
+        ):
         self.name = name
         self.cyclists = tuple(cyclists)
         self.exhaustion = exhaustion
@@ -246,9 +256,11 @@ class Team:
         available = self.available_cyclists
         return choice(available) if available else None
 
-    def order_cyclists(self, game=None):
+    def order_cyclists(
+            self,
+            game: Optional['flamme_rouge.core.Game'] = None,
+        ) -> Generator[Cyclist, None, None]:
         ''' generator of cyclists in order '''
-
         while True:
             cyclist = self.next_cyclist(game)
             if cyclist is None:
@@ -259,25 +271,27 @@ class Team:
             yield cyclist
 
     #pylint: disable=no-self-use,unused-argument
-    def choose_card(self, cyclist, game=None):
+    def choose_card(
+            self,
+            cyclist: Cyclist,
+            game: Optional['flamme_rouge.core.Game'] = None,
+        ) -> Optional[Card]:
         ''' choose card '''
-
         return choice(cyclist.hand) if cyclist.hand else None
 
-    def reset(self):
+    def reset(self) -> 'Team':
         ''' reset this team '''
-
         for cyclist in self.cyclists:
             cyclist.reset()
         return self
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 class Regular(Team):
     ''' team with rouleur and sprinteur '''
 
-    def __init__(self, hand_size=None, **kwargs):
+    def __init__(self, hand_size: Optional[int] = None, **kwargs):
         kwargs['cyclists'] = (
             Sprinteur(team=self, hand_size=hand_size),
             Rouleur(team=self, hand_size=hand_size),

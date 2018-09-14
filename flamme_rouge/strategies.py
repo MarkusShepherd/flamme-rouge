@@ -6,7 +6,7 @@ import logging
 
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
-from .cards import EXHAUSTION_VALUE
+from .cards import Card
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team, Tuple
 from .utils import input_int
 
@@ -36,7 +36,7 @@ class Human(Regular):
 
         for cyclist in self.cyclists:
             cards = handicap[0] if isinstance(cyclist, Sprinteur) else handicap[1]
-            cyclist.deck.extend((EXHAUSTION_VALUE,) * cards)
+            cyclist.deck.extend((Card.EXHAUSTION,) * cards)
 
     def _select_cyclist(self, cyclists: Optional[Sequence[Cyclist]] = None) -> Cyclist:
         cyclists = self.cyclists if cyclists is None else cyclists
@@ -77,24 +77,32 @@ class Human(Regular):
 
         return cyclist, section
 
-    def next_cyclist(self, game=None):
+    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
         available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
         return self._select_cyclist(available)
 
-    def choose_card(self, cyclist, game=None):
-        while True:
-            card = input_int(f'Choose your card for <{cyclist}> from hand {cyclist.hand}: ')
-
-            if card in cyclist.hand:
-                return card
+    def choose_card(
+            self,
+            cyclist: Cyclist,
+            game: Optional['flamme_rouge.core.Game'] = None,
+        ) -> Optional[Card]:
+        hand = sorted(cyclist.hand)
+        hand_str = ', '.join(f'({i}) {c}' for i, c in enumerate(hand))
+        pos = input_int(
+            f'Choose your card for <{cyclist}> from hand {hand_str}: ',
+            lower=0, upper=len(hand) - 1)
+        return hand[pos]
 
 
 class Peloton(Team):
     ''' peloton team '''
 
-    def __init__(self, name=None, **kwargs):
-        self.leader = Rouleur(
-            team=self, deck=(0, 0, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7), hand_size=1)
+    attack_deck: Tuple[Card] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
+    curr_card: Optional[Card]
+    _starting_positions: Optional[Dict[Cyclist, 'flamme_rouge.tracks.Section']]
+
+    def __init__(self, name: Optional[str] = None, **kwargs):
+        self.leader = Rouleur(team=self, deck=self.attack_deck, hand_size=1)
         self.dummy = Rouleur(team=self, deck=(), hand_size=1)
 
         kwargs['cyclists'] = (self.leader, self.dummy)
@@ -117,52 +125,35 @@ class Peloton(Team):
                 return cyclist, self._starting_positions[cyclist]
         raise RuntimeError('all cyclists have been placed')
 
-    def next_cyclist(self, game=None):
+    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
         return (
             self.leader if self.leader.curr_card is None
             else self.dummy if self.dummy.curr_card is None
             else None)
 
-    def choose_card(self, cyclist, game=None):
+    def choose_card(
+            self,
+            cyclist: Cyclist,
+            game: Optional['flamme_rouge.core.Game'] = None,
+        ) -> Optional[Card]:
         if cyclist is self.dummy:
             card = self.curr_card
             cyclist.hand = [card]
             self.curr_card = None
             return card
 
-        card = super().choose_card(cyclist, game)
-
-        if card:
-            self.curr_card = card
-            return card
-
-        assert game
-
-        # discard Attack! card
-        cyclist.hand.remove(0)
-
-        first = None
-        for cyc in game.track.cyclists():
-            if cyc in self.cyclists:
-                first = cyc
-                break
-        assert first
-
-        card = 2 if cyclist is first else 9
-        cyclist.hand.append(card)
-        self.curr_card = 11 - card
-        return card
+        self.curr_card = super().choose_card(cyclist, game)
+        return self.curr_card
 
 
 class Muscle(Team):
     ''' muscle team '''
 
-    def __init__(self, name=None, **kwargs):
+    muscle_deck = Sprinteur.initial_deck + (Card.CARD_5,)
+
+    def __init__(self, name: Optional[str] = None, **kwargs):
         kwargs['cyclists'] = (
-            Sprinteur(
-                team=self,
-                deck=(2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 9, 9, 9),
-                hand_size=1),
+            Sprinteur(team=self, deck=self.muscle_deck, hand_size=1),
             Rouleur(team=self, hand_size=1),
         )
         kwargs['exhaustion'] = False

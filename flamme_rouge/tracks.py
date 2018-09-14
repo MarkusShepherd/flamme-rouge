@@ -8,7 +8,7 @@ import re
 from collections import deque
 from typing import Generator, Iterable, Iterator, List, Optional, Tuple, Union
 
-from .cards import EXHAUSTION_VALUE, Card
+from .cards import Card
 from .utils import class_from_path, window
 
 LOGGER = logging.getLogger(__name__)
@@ -280,7 +280,7 @@ class Track:
                 for cyclist in sec0.cyclists:
                     if not cyclist.team or cyclist.team.exhaustion:
                         LOGGER.info('🚴 <%s> gets exhausted', cyclist)
-                        cyclist.discard(EXHAUSTION_VALUE)
+                        cyclist.discard(Card.EXHAUSTION)
 
     @property
     def leading(self) -> Optional['flamme_rouge.teams.Cyclist']:

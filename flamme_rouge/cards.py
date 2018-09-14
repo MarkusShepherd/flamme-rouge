@@ -5,8 +5,6 @@
 from .utils import OrderedEnum
 
 
-EXHAUSTION_VALUE = 2
-
 class Card(OrderedEnum):
     ''' cards in Flamme Rouge '''
 
@@ -18,7 +16,7 @@ class Card(OrderedEnum):
     CARD_7 = (7, 7, False)
     CARD_8 = (8, 8, False)
     CARD_9 = (9, 9, False)
-    EXHAUSTION = (EXHAUSTION_VALUE, EXHAUSTION_VALUE, True)
+    EXHAUSTION = (2, 2, True)
     ATTACK = (2, 9, False)
 
     def __init__(self, value_front: int, value_behind: int, exhaustion: bool):
