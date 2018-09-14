@@ -6,7 +6,7 @@ import logging
 import re
 
 from collections import deque
-from typing import Generator, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Generator, Iterable, Iterator, Optional, Tuple, Union
 
 from .cards import Card
 from .utils import class_from_path, window
@@ -40,24 +40,20 @@ class Section:
     @property
     def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist', ...]:
         ''' cyclists '''
-
         return tuple(self._cyclists)
 
     @property
     def empty(self) -> bool:
         ''' true if section is empty '''
-
         return not self._cyclists
 
     @property
     def full(self) -> bool:
         ''' true if section is filled to capacity '''
-
         return len(self._cyclists) >= self.lanes
 
     def add_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
         ''' add a rider to the section '''
-
         if self.full:
             return False
         self._cyclists.append(cyclist)
@@ -66,7 +62,6 @@ class Section:
 
     def remove_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
         ''' remove a rider from this section '''
-
         try:
             self._cyclists.remove(cyclist)
             return True
@@ -79,7 +74,6 @@ class Section:
 
     def reset(self) -> 'Section':
         ''' reset this section '''
-
         self._cyclists = deque(maxlen=self.lanes)
         return self
 
@@ -109,56 +103,48 @@ class Section:
 
 class Section3(Section):
     ''' 3 lane section '''
-
     def __init__(self, position: int):
         super().__init__(position=position, lanes=3)
 
 
 class Finish(Section):
     ''' finish section '''
-
     def __init__(self, position: int):
         super().__init__(position=position, slipstream=False)
 
 
 class Finish3(Section):
     ''' finish section with 3 lanes '''
-
     def __init__(self, position: int):
         super().__init__(position=position, lanes=3, slipstream=False)
 
 
 class MountainUp(Section):
     ''' up section '''
-
     def __init__(self, position: int):
         super().__init__(position=position, slipstream=False, max_speed=5)
 
 
 class MountainDown(Section):
     ''' down section '''
-
     def __init__(self, position: int):
         super().__init__(position=position, min_speed=5)
 
 
 class Supply(Section):
     ''' supply zone section '''
-
     def __init__(self, position: int):
         super().__init__(position=position, lanes=3, min_speed=4)
 
 
 class Cobblestone1(Section):
     ''' cobblestone with one lane '''
-
     def __init__(self, position: int):
         super().__init__(position=position, lanes=1, slipstream=False)
 
 
 class Cobblestone2(Section):
     ''' cobblestone with two lanes '''
-
     def __init__(self, position: int):
         super().__init__(position=position, slipstream=False)
 
@@ -193,14 +179,12 @@ class Track:
         return reversed(self.sections)
 
     @property
-    def available_start(self) -> List[Section]:
+    def available_start(self) -> Tuple[Section, ...]:
         ''' available starting positions '''
-
-        return [section for section in self.sections[:self.start] if not section.full]
+        return tuple(section for section in self.sections[:self.start] if not section.full)
 
     def cyclists(self) -> Generator['flamme_rouge.teams.Cyclist', None, None]:
         ''' generator of riders from first to last '''
-
         for section in reversed(self.sections):
             yield from section.cyclists
 
@@ -235,7 +219,7 @@ class Track:
     def move_cyclist(
             self,
             cyclist: 'flamme_rouge.teams.Cyclist',
-            card: Union[int, Card],
+            card: Card,
             min_speed: bool = False,
         ) -> int:
         ''' move cyclists '''

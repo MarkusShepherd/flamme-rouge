@@ -2,6 +2,8 @@
 
 ''' cards '''
 
+from typing import Tuple
+
 from .utils import OrderedEnum
 
 
@@ -25,7 +27,7 @@ class Card(OrderedEnum):
         self.exhaustion = exhaustion
 
     @property
-    def value_comp(self) -> tuple:
+    def value_comp(self) -> Tuple[bool, int, int, bool]:
         return (
             self not in (Card.EXHAUSTION, Card.ATTACK),
             self.value_front,

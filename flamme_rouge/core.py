@@ -179,7 +179,7 @@ class Game:
             actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
             cyclist.curr_card = None
             LOGGER.info(
-                '🚴 <%s> planned move %s and did move %d section(s)',
+                '🚴 <%s> selected card %s and moved %d section(s)',
                 cyclist, planned, actual)
 
         self.track.do_slipstream()

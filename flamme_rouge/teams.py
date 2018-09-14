@@ -176,7 +176,6 @@ class Team:
     @property
     def available_cyclists(self) -> Tuple[Cyclist, ...]:
         ''' available cyclist this round '''
-
         return tuple(c for c in self.cyclists if not c.finished and c.curr_card is None)
 
     @property

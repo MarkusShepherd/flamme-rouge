@@ -19,7 +19,7 @@ from .utils import class_from_path
 LOGGER = logging.getLogger(__name__)
 
 
-def _parse_args():
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Flamme Rouge')
     parser.add_argument('names', nargs='*', help='names of players')
     parser.add_argument('--track', '-t', help='pre-defined track')
@@ -37,7 +37,7 @@ def _parse_args():
     return parser.parse_args()
 
 
-def _main():
+def _main() -> None:
     args = _parse_args()
 
     logging.basicConfig(
