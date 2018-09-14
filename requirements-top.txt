@@ -1,5 +1,6 @@
 colorama
 gym
+inquirer
 keras
 keras-rl
 # tensorflow

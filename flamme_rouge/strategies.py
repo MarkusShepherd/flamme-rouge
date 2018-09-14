@@ -6,9 +6,10 @@ import logging
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Sequence
 
+import inquirer
+
 from .cards import Card
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team, Tuple
-from .utils import input_int
 
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import,unused-import
@@ -41,16 +42,24 @@ class Human(Regular):
         if len(cyclists) < 2:
             return cyclists[0] if cyclists else None
 
-        string = ', '.join(f'{cyclist} ({pos})' for pos, cyclist in enumerate(cyclists))
-        prompt = f'Choose a cyclist: {string} '
-        choice = input_int(prompt, lower=0, upper=len(cyclists) - 1)
-        return cyclists[choice]
+        question = inquirer.List(
+            name='cyclist',
+            message='Choose a cyclist',
+            choices=cyclists,
+            carousel=True,
+        )
+        answer = inquirer.prompt([question])
+
+        assert answer
+        assert isinstance(answer.get('cyclist'), Cyclist)
+
+        return answer['cyclist']
 
     def starting_position(
             self,
             game: 'Game',
         ) -> Tuple[Cyclist, 'Section']:
-        sections = game.track.sections[:game.track.start]
+        sections = game.track[:game.track.start]
 
         print('Currently chosen starting positions:')
         print('\n'.join(map(str, sections)))
@@ -58,21 +67,20 @@ class Human(Regular):
         cyclists = [c for c in self.cyclists if c.section is None]
         cyclist = self._select_cyclist(cyclists)
 
-        available = game.track.available_start
+        positions = [section.position for section in game.track.available_start]
+        question = inquirer.List(
+            name='position',
+            message=f'Choose the position for your {cyclist}',
+            choices=positions,
+            default=positions[-1],
+            carousel=True,
+        )
+        answer = inquirer.prompt([question])
 
-        lower = min(section.position for section in available)
-        upper = max(section.position for section in available)
+        assert answer
+        assert isinstance(answer.get('position'), int)
 
-        section = None
-
-        while section is None:
-            choice = input_int(
-                f'Choose position for your {cyclist}: ', lower=lower, upper=upper)
-            sections = [section for section in available if section.position == choice]
-            if sections:
-                section = sections[0]
-
-        return cyclist, section
+        return cyclist, game.track[answer['position']]
 
     def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
         available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
@@ -83,12 +91,23 @@ class Human(Regular):
             cyclist: Cyclist,
             game: Optional['Game'] = None,
         ) -> Optional[Card]:
-        hand = sorted(cyclist.hand)
-        hand_str = ', '.join(f'({i}) {c}' for i, c in enumerate(hand))
-        pos = input_int(
-            f'Choose your card for <{cyclist}> from hand {hand_str}: ',
-            lower=0, upper=len(hand) - 1)
-        return hand[pos]
+        if not cyclist.hand:
+            return None
+
+        hand = sorted(set(cyclist.hand))
+        hand_tags = [inquirer.questions.TaggedValue(label=str(c), value=c) for c in hand]
+        question = inquirer.List(
+            name='card',
+            message=f'Choose the card for your {cyclist}',
+            choices=hand_tags,
+            carousel=True,
+        )
+        answer = inquirer.prompt([question])
+
+        assert answer
+        assert isinstance(answer.get('card'), Card)
+
+        return answer['card']
 
 
 class Peloton(Team):
