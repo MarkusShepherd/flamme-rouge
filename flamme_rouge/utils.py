@@ -100,7 +100,7 @@ class OrderedEnum(Enum):
         ''' the value used for comparison '''
         return self.value
 
-    #pylint: disable=comparison-with-callable
+    # pylint: disable=comparison-with-callable
     def __ge__(self, other):
         if self.__class__ is other.__class__:
             return self.value_comp >= other.value_comp

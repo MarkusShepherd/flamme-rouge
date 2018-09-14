@@ -6,7 +6,8 @@ import logging
 import math
 
 from random import choice, shuffle
-from typing import Dict, Generator, List, Iterable, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING, Dict, Generator, List, Iterable, Optional, Sequence, Tuple, Union, cast)
 
 from termcolor import colored
 
@@ -14,6 +15,11 @@ from .actions import Action, SelectCardAction, SelectCyclistAction, SelectStartP
 from .const import COLORS
 from .core import Phase
 from .cards import Card
+
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import,unused-import
+    from .core import Game
+    from .tracks import Section, Track
 
 LOGGER = logging.getLogger(__name__)
 Color = Union[Dict[str, str], str, None]
@@ -28,7 +34,7 @@ class Cyclist:
     hand: Optional[List[Card]]
     discard_pile: List[Card]
     curr_card: Optional[Card]
-    section: Optional['flamme_rouge.tracks.Section']
+    section: Optional['Section']
 
     time: int = 0
     finished: bool = False
@@ -43,7 +49,7 @@ class Cyclist:
             hand_size: int = 4,
             colors: Color = None,
             handicap: Optional[int] = None,
-        ):
+        ) -> None:
         if deck is not None:
             self.initial_deck = tuple(deck)
         self.handicap = handicap
@@ -111,6 +117,8 @@ class Cyclist:
     def select_card(self, card: Card) -> bool:
         ''' select a card from hand '''
 
+        assert self.hand is not None
+
         try:
             self.hand.remove(card)
             self.curr_card = card
@@ -133,8 +141,8 @@ class Cyclist:
 
     def ahead_of(
             self,
-            other: 'flamme_rouge.teams.Cyclist',
-            track: 'flamme_rouge.tracks.Track',
+            other: 'Cyclist',
+            track: 'Track',
         ) -> bool:
         ''' True if this cyclist is ahead of the other cyclist on the track else False '''
         return track.compare(self, other) > 0
@@ -171,7 +179,7 @@ class Team:
             colors: Color = None,
             handicap: Union[int, Sequence[int]] = 0,
             hand_size: Optional[int] = None,
-        ):
+        ) -> None:
         self.name = name
         self.cyclists = tuple(cyclists)
         self.exhaustion = exhaustion
@@ -188,7 +196,7 @@ class Team:
 
         for cyclist, h_cap in zip(self.cyclists, self.handicap):
             cyclist.team = self
-            cyclist.colors = cyclist.colors or self.colors
+            cyclist.colors = cast(Dict[str, str], cyclist.colors or self.colors)
             cyclist.handicap = h_cap if cyclist.handicap is None else cyclist.handicap
             cyclist.hand_size = hand_size if hand_size is not None else cyclist.hand_size
 
@@ -228,13 +236,16 @@ class Team:
 
         cyclist = self.cyclist_to_select_card
         assert cyclist is not None
+        assert cyclist.hand is not None
         return tuple(SelectCardAction(cyclist, card) for card in cyclist.hand)
 
-    def select_action(self, game: 'flamme_rouge.core.Game') -> Optional[Action]:
+    def select_action(self, game: 'Game') -> Optional[Action]:
         ''' select the next action '''
 
         if game.phase is Phase.FINISH:
             return None
+
+        cyclist: Optional[Cyclist]
 
         if game.phase is Phase.START:
             cyclist, section = self.starting_position(game)
@@ -242,14 +253,10 @@ class Team:
 
         assert game.phase is Phase.RACE
 
-        # actions = self.available_actions
-        # if not actions:
-        #     return None
-        # if len(actions) == 1:
-        #     return actions[0]
-
         if self.need_to_select_cyclist:
-            return SelectCyclistAction(self.next_cyclist(game))
+            cyclist = self.next_cyclist(game)
+            assert cyclist is not None
+            return SelectCyclistAction(cyclist)
 
         cyclist = self.cyclist_to_select_card
 
@@ -257,6 +264,7 @@ class Team:
             cards = ', '.join(map(str, cyclist.cards))
             hand = ', '.join(map(str, sorted(cyclist.hand or ())))
             card = self.choose_card(cyclist, game)
+            assert card is not None
             LOGGER.debug(
                 '🚴 <%s> has cards <%s>, received hand <%s> and selected card <%s>',
                 cyclist, cards, hand, card)
@@ -266,16 +274,16 @@ class Team:
 
     def starting_position(
             self,
-            game: 'flamme_rouge.core.Game',
-        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
         ''' select starting positions '''
 
         cyclists = [c for c in self.cyclists if c.section is None]
         assert cyclists
         return choice(cyclists), choice(game.track.available_start)
 
-    #pylint: disable=unused-argument
-    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
+    # pylint: disable=unused-argument
+    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
         ''' select the next cyclist '''
 
         available = self.available_cyclists
@@ -283,7 +291,7 @@ class Team:
 
     def order_cyclists(
             self,
-            game: Optional['flamme_rouge.core.Game'] = None,
+            game: Optional['Game'] = None,
         ) -> Generator[Cyclist, None, None]:
         ''' generator of cyclists in order '''
         while True:
@@ -295,11 +303,11 @@ class Team:
                 cyclist.hand, cyclist.deck, cyclist.discard_pile)
             yield cyclist
 
-    #pylint: disable=no-self-use,unused-argument
+    # pylint: disable=no-self-use,unused-argument
     def choose_card(
             self,
             cyclist: Cyclist,
-            game: Optional['flamme_rouge.core.Game'] = None,
+            game: Optional['Game'] = None,
         ) -> Optional[Card]:
         ''' choose card '''
         return choice(cyclist.hand) if cyclist.hand else None
@@ -316,6 +324,6 @@ class Team:
 class Regular(Team):
     ''' team with rouleur and sprinteur '''
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         kwargs['cyclists'] = (Rouleur(team=self), Sprinteur(team=self))
         super().__init__(**kwargs)

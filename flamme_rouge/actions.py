@@ -3,13 +3,19 @@
 ''' actions '''
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import,unused-import
+    from .cards import Card
+    from .teams import Cyclist
 
 
-#pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
 @dataclass(frozen=True)
 class Action:
     ''' an action in Flamme Rouge '''
-    cyclist: 'flamme_rouge.teams.Cyclist'
+    cyclist: 'Cyclist'
 
 
 @dataclass(frozen=True)
@@ -31,4 +37,4 @@ class SelectCyclistAction(RaceAction):
 @dataclass(frozen=True)
 class SelectCardAction(RaceAction):
     ''' select a card from cyclist's hand '''
-    card: 'flamme_rouge.cards.Card'
+    card: 'Card'

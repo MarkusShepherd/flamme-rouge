@@ -13,7 +13,7 @@ class FREnv(Env):
     action_space = Discrete(10)
     observation_space = Box() # TODO
 
-    def __init__(self, game):
+    def __init__(self, game) -> None:
         super(FREnv, self).__init__()
         self.game = game
 

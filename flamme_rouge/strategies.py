@@ -4,20 +4,25 @@
 
 import logging
 
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Sequence
 
 from .cards import Card
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team, Tuple
 from .utils import input_int
 
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import,unused-import
+    from .core import Game
+    from .tracks import Section
+
 LOGGER = logging.getLogger(__name__)
 
 
 def _first_available(
-        game: 'flamme_rouge.core.Game',
+        game: 'Game',
         cyclists: Iterable[Cyclist],
         key: Optional[Callable[[Cyclist], Any]] = None,
-    ) -> Dict[Cyclist, 'flamme_rouge.tracks.Section']:
+    ) -> Dict[Cyclist, 'Section']:
     available = reversed(game.track.available_start)
     cyclists = cyclists if key is None else sorted(cyclists, key=key)
     return dict(zip(cyclists, available))
@@ -26,7 +31,7 @@ def _first_available(
 class Human(Regular):
     ''' human input '''
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         kwargs['exhaustion'] = True
         super().__init__(**kwargs)
 
@@ -43,8 +48,8 @@ class Human(Regular):
 
     def starting_position(
             self,
-            game: 'flamme_rouge.core.Game',
-        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
         sections = game.track.sections[:game.track.start]
 
         print('Currently chosen starting positions:')
@@ -69,14 +74,14 @@ class Human(Regular):
 
         return cyclist, section
 
-    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
+    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
         available = [cyclist for cyclist in self.cyclists if cyclist.curr_card is None]
         return self._select_cyclist(available)
 
     def choose_card(
             self,
             cyclist: Cyclist,
-            game: Optional['flamme_rouge.core.Game'] = None,
+            game: Optional['Game'] = None,
         ) -> Optional[Card]:
         hand = sorted(cyclist.hand)
         hand_str = ', '.join(f'({i}) {c}' for i, c in enumerate(hand))
@@ -91,9 +96,9 @@ class Peloton(Team):
 
     attack_deck: Tuple[Card] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
     curr_card: Optional[Card]
-    _starting_positions: Optional[Dict[Cyclist, 'flamme_rouge.tracks.Section']]
+    _starting_positions: Optional[Dict[Cyclist, 'Section']]
 
-    def __init__(self, name: Optional[str] = None, **kwargs):
+    def __init__(self, name: Optional[str] = None, **kwargs) -> None:
         self.leader = Rouleur(team=self, deck=self.attack_deck)
         self.dummy = Rouleur(team=self, deck=())
 
@@ -109,8 +114,8 @@ class Peloton(Team):
 
     def starting_position(
             self,
-            game: 'flamme_rouge.core.Game',
-        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
         if self._starting_positions is None:
             self._starting_positions = _first_available(game, self.cyclists)
         for cyclist in self.cyclists:
@@ -118,7 +123,7 @@ class Peloton(Team):
                 return cyclist, self._starting_positions[cyclist]
         raise RuntimeError('all cyclists have been placed')
 
-    def next_cyclist(self, game: Optional['flamme_rouge.core.Game'] = None) -> Optional[Cyclist]:
+    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
         return (
             self.leader if self.leader.curr_card is None
             else self.dummy if self.dummy.curr_card is None
@@ -127,7 +132,7 @@ class Peloton(Team):
     def choose_card(
             self,
             cyclist: Cyclist,
-            game: Optional['flamme_rouge.core.Game'] = None,
+            game: Optional['Game'] = None,
         ) -> Optional[Card]:
         if cyclist is self.dummy:
             card = self.curr_card
@@ -144,7 +149,7 @@ class Muscle(Team):
 
     muscle_deck = Sprinteur.initial_deck + (Card.CARD_5,)
 
-    def __init__(self, name: Optional[str] = None, **kwargs):
+    def __init__(self, name: Optional[str] = None, **kwargs) -> None:
         kwargs['cyclists'] = (Sprinteur(team=self, deck=self.muscle_deck), Rouleur(team=self))
         kwargs['exhaustion'] = False
         kwargs['order'] = 1
@@ -156,8 +161,8 @@ class Muscle(Team):
 
     def starting_position(
             self,
-            game: 'flamme_rouge.core.Game',
-        ) -> Tuple[Cyclist, 'flamme_rouge.tracks.Section']:
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
         if self._starting_positions is None:
             self._starting_positions = _first_available(
                 game, self.cyclists, lambda x: not isinstance(x, Sprinteur))

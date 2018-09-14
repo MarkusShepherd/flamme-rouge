@@ -6,10 +6,15 @@ import logging
 import re
 
 from collections import deque
-from typing import Generator, Iterable, Iterator, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING, Any, Deque, Generator, Iterable, Iterator, Optional, Tuple, Type, Union, cast)
 
 from .cards import Card
 from .utils import class_from_path, window
+
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import,unused-import
+    from .teams import Cyclist
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,17 +33,17 @@ class Section:
             slipstream: bool = True,
             min_speed: Optional[int] = None,
             max_speed: Optional[int] = None,
-        ):
+        ) -> None:
         self.position = position
         self.lanes = lanes
         self.slipstream = slipstream
         self.min_speed = min_speed
         self.max_speed = max_speed
 
-        self._cyclists = deque(maxlen=lanes)
+        self._cyclists: Deque['Cyclist'] = deque(maxlen=lanes)
 
     @property
-    def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist', ...]:
+    def cyclists(self) -> Tuple['Cyclist', ...]:
         ''' cyclists '''
         return tuple(self._cyclists)
 
@@ -52,7 +57,7 @@ class Section:
         ''' true if section is filled to capacity '''
         return len(self._cyclists) >= self.lanes
 
-    def add_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
+    def add_cyclist(self, cyclist: 'Cyclist') -> bool:
         ''' add a rider to the section '''
         if self.full:
             return False
@@ -60,7 +65,7 @@ class Section:
         cyclist.section = self
         return True
 
-    def remove_cyclist(self, cyclist: 'flamme_rouge.teams.Cyclist') -> bool:
+    def remove_cyclist(self, cyclist: 'Cyclist') -> bool:
         ''' remove a rider from this section '''
         try:
             self._cyclists.remove(cyclist)
@@ -86,11 +91,11 @@ class Section:
             top += ' 🚫'
 
         lane_str = f' {{:{self.LANE_STR_WIDTH - 2}s}} '
-        cyclists = self.cyclists
+        cyclists = tuple(map(str, self.cyclists))
         cyclists += ('',) * (self.lanes - len(self._cyclists))
         # TODO format correctly without messing up colors
         # lane_str.format(str(cyclist)[:self.LANE_STR_WIDTH - 2]) for cyclist in cyclists)
-        cyclists = tuple(lane_str.format(str(cyclist)) for cyclist in cyclists)
+        cyclists = tuple(map(lane_str.format, cyclists))
         middle = '|'.join(('',) + cyclists + ('',))
         if self.max_speed is not None:
             middle = f'{middle} ≤{self.max_speed}'
@@ -103,49 +108,49 @@ class Section:
 
 class Section3(Section):
     ''' 3 lane section '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, lanes=3)
 
 
 class Finish(Section):
     ''' finish section '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, slipstream=False)
 
 
 class Finish3(Section):
     ''' finish section with 3 lanes '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, lanes=3, slipstream=False)
 
 
 class MountainUp(Section):
     ''' up section '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, slipstream=False, max_speed=5)
 
 
 class MountainDown(Section):
     ''' down section '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, min_speed=5)
 
 
 class Supply(Section):
     ''' supply zone section '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, lanes=3, min_speed=4)
 
 
 class Cobblestone1(Section):
     ''' cobblestone with one lane '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, lanes=1, slipstream=False)
 
 
 class Cobblestone2(Section):
     ''' cobblestone with two lanes '''
-    def __init__(self, position: int):
+    def __init__(self, position: int) -> None:
         super().__init__(position=position, slipstream=False)
 
 
@@ -159,7 +164,7 @@ class Track:
             finish: int = -5,
             min_players: int = 3,
             max_players: int = 4,
-        ):
+        ) -> None:
         self.sections = tuple(sections)
         self.start = start
         self.finish = finish if finish > 0 else len(self) + finish
@@ -183,14 +188,14 @@ class Track:
         ''' available starting positions '''
         return tuple(section for section in self.sections[:self.start] if not section.full)
 
-    def cyclists(self) -> Generator['flamme_rouge.teams.Cyclist', None, None]:
+    def cyclists(self) -> Generator['Cyclist', None, None]:
         ''' generator of riders from first to last '''
         for section in reversed(self.sections):
             yield from section.cyclists
 
     def _move_cyclist(
             self,
-            cyclist: 'flamme_rouge.teams.Cyclist',
+            cyclist: 'Cyclist',
             value: int,
             start: int,
             min_speed: bool = False,
@@ -218,8 +223,8 @@ class Track:
 
     def move_cyclist(
             self,
-            cyclist: 'flamme_rouge.teams.Cyclist',
-            card: Card,
+            cyclist: 'Cyclist',
+            card: Union[Card, int],
             min_speed: bool = False,
         ) -> int:
         ''' move cyclists '''
@@ -241,6 +246,8 @@ class Track:
             if pos != end:
                 section.remove_cyclist(cyclist)
             return end - pos
+
+        raise ValueError('something went wrong during movement')
 
     def do_slipstream(self) -> None:
         ''' move cyclists through slipstream '''
@@ -267,7 +274,7 @@ class Track:
                         cyclist.discard(Card.EXHAUSTION)
 
     @property
-    def leading(self) -> Optional['flamme_rouge.teams.Cyclist']:
+    def leading(self) -> Optional['Cyclist']:
         ''' leading cyclist '''
         return next(self.cyclists(), None)
 
@@ -292,8 +299,8 @@ class Track:
 
     def compare(
             self,
-            cyclist_1: 'flamme_rouge.teams.Cyclist',
-            cyclist_2: 'flamme_rouge.teams.Cyclist',
+            cyclist_1: 'Cyclist',
+            cyclist_2: 'Cyclist',
         ) -> int:
         ''' returns +1 if cyclist_1 is ahead else -1 '''
 
@@ -306,14 +313,19 @@ class Track:
 
     def __str__(self) -> str:
         start = next(self.non_empty(), None)
-        start = start.position - 1 if start is not None and start.position else 0
-        finish = max(start, self.finish)
+        start_pos = start.position - 1 if start is not None and start.position else 0
+        finish = max(start_pos, self.finish)
         total = (Section.LANE_STR_WIDTH + 1) * 2 + 1
-        sections = self.sections[start:finish] + ('#' * total,) + self.sections[finish:]
+        sections = cast(
+            Tuple[Any], self.sections[start_pos:finish]) + ('#' * total,) + self.sections[finish:]
         return '\n'.join(map(str, sections))
 
     @classmethod
-    def from_sections(cls, sections: Union[str, Iterable[str]], **kwargs) -> 'Track':
+    def from_sections(
+            cls,
+            sections: Union[str, Iterable[str], Iterable[Type[Section]]],
+            **kwargs,
+        ) -> 'Track':
         ''' create a track from a sequence of sections '''
 
         if isinstance(sections, str):
@@ -324,15 +336,15 @@ class Track:
         return cls(sections=sections, **kwargs)
 
 
-_SEC = (Section,)
-_SEC3 = (Section3,)
-_FIN = (Finish,)
-_FIN3 = (Finish3,)
-_UP = (MountainUp,)
-_DOWN = (MountainDown,)
-_SUP = (Supply,)
-_COB1 = (Cobblestone1,)
-_COB2 = (Cobblestone2,)
+_SEC: Tuple[Type[Section]] = (Section,)
+_SEC3: Tuple[Type[Section]] = (Section3,)
+_FIN: Tuple[Type[Section]] = (Finish,)
+_FIN3: Tuple[Type[Section]] = (Finish3,)
+_UP: Tuple[Type[Section]] = (MountainUp,)
+_DOWN: Tuple[Type[Section]] = (MountainDown,)
+_SUP: Tuple[Type[Section]] = (Supply,)
+_COB1: Tuple[Type[Section]] = (Cobblestone1,)
+_COB2: Tuple[Type[Section]] = (Cobblestone2,)
 
 AVENUE_CORSO_PASEO = Track.from_sections(_SEC * 73 + _FIN * 5)
 FIRENZE_MILANO = Track.from_sections(

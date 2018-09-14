@@ -7,10 +7,15 @@ import logging
 from enum import Enum, auto
 from itertools import product
 from random import choice, shuffle
-from typing import Iterable, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 from .actions import (
     Action, RaceAction, SelectCardAction, SelectCyclistAction, SelectStartPositionAction)
+
+if TYPE_CHECKING:
+    # pylint: disable=cyclic-import,unused-import
+    from .teams import Cyclist, Team
+    from .tracks import Track
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,22 +54,25 @@ def _execute_card_action(action: SelectCardAction) -> None:
 class Game:
     ''' Flamme Rouge game '''
 
-    track: 'flamme_rouge.tracks.Track'
-    teams: Tuple['flamme_rouge.teams.Team', ...]
+    track: 'Track'
+    teams: Tuple['Team', ...]
     phase: Phase = Phase.START
     rounds_played: int = 0
 
     def __init__(
-            self, track: 'flamme_rouge.tracks.Track', teams: Iterable['flamme_rouge.teams.Team']):
+            self,
+            track: 'Track',
+            teams: Iterable['Team'],
+        ) -> None:
         self.track = track
-        self.teams = teams
-        self.reset()
+        self.reset(teams)
 
-    def reset(self) -> 'Game':
+    def reset(self, teams: Optional[Iterable['Team']] = None) -> 'Game':
         ''' reset this game '''
 
         self.track = self.track.reset()
-        teams = [team.reset() for team in self.teams]
+        teams = teams if teams is not None else self.teams
+        teams = [team.reset() for team in teams]
         shuffle(teams)
         teams.sort(key=lambda team: team.order)
         self.teams = tuple(teams)
@@ -78,12 +86,12 @@ class Game:
         return self.track.finished()
 
     @property
-    def winner(self) -> Optional['flamme_rouge.teams.Cyclist']:
+    def winner(self) -> Optional['Cyclist']:
         ''' winner of the game if any, else None '''
         return self.track.leading if self.finished else None
 
     @property
-    def active_teams(self) -> Tuple['flamme_rouge.teams.Team', ...]:
+    def active_teams(self) -> Tuple['Team', ...]:
         ''' currently active teams '''
 
         if self.phase is Phase.FINISH:
@@ -102,11 +110,11 @@ class Game:
             team for team in self.teams if any(c.curr_card is None for c in team.cyclists))
 
     @property
-    def cyclists(self) -> Tuple['flamme_rouge.teams.Cyclist', ...]:
+    def cyclists(self) -> Tuple['Cyclist', ...]:
         ''' all cyclists in the race '''
         return tuple(c for team in self.teams for c in team.cyclists)
 
-    def _available_actions_start(self, team: 'flamme_rouge.teams.Team') -> Tuple[Action, ...]:
+    def _available_actions_start(self, team: 'Team') -> Tuple[Action, ...]:
         placed = frozenset(self.track.cyclists())
         cyclists = (c for c in team.cyclists if c not in placed)
         sections = self.track.available_start
@@ -114,7 +122,7 @@ class Game:
         return tuple(
             SelectStartPositionAction(c, s.position) for c, s in product(cyclists, sections))
 
-    def available_actions(self, team: 'flamme_rouge.teams.Team') -> Tuple[Action, ...]:
+    def available_actions(self, team: 'Team') -> Tuple[Action, ...]:
         ''' available actions to that team '''
 
         if team not in self.active_teams:
@@ -130,7 +138,7 @@ class Game:
 
         return ()
 
-    def take_action(self, team: 'flamme_rouge.teams.Team', action: Action) -> Phase:
+    def take_action(self, team: 'Team', action: Action) -> Phase:
         ''' a team takes an action '''
 
         assert team in self.active_teams
@@ -175,6 +183,7 @@ class Game:
             return
 
         for cyclist in self.track.cyclists():
+            assert cyclist.curr_card is not None
             planned = cyclist.curr_card
             actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
             cyclist.curr_card = None

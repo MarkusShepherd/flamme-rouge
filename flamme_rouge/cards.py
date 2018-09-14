@@ -21,7 +21,7 @@ class Card(OrderedEnum):
     EXHAUSTION = (2, 2, True)
     ATTACK = (2, 9, False)
 
-    def __init__(self, value_front: int, value_behind: int, exhaustion: bool):
+    def __init__(self, value_front: int, value_behind: int, exhaustion: bool) -> None:
         self.value_front = value_front
         self.value_behind = value_behind
         self.exhaustion = exhaustion
