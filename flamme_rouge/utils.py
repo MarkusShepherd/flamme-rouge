@@ -8,11 +8,14 @@ from enum import Enum
 from functools import lru_cache
 from importlib import import_module
 from itertools import tee
+from typing import Any, Iterable, Optional, Tuple, TypeVar, Union
 
 LOGGER = logging.getLogger(__name__)
 
+Typed = TypeVar('Typed')
 
-def window(iterable, size=2):
+
+def window(iterable: Iterable[Typed], size: int = 2) -> Iterable[Tuple[Typed, ...]]:
     ''' sliding window of an iterator '''
 
     iterables = tee(iterable, size)
@@ -24,7 +27,7 @@ def window(iterable, size=2):
     return zip(*iterables)
 
 
-def parse_int(string, base=10):
+def parse_int(string: Any, base: int = 10) -> Optional[int]:
     ''' safely convert an object to int if possible, else return None '''
 
     if isinstance(string, int):
@@ -44,7 +47,13 @@ def parse_int(string, base=10):
 
     return None
 
-def input_int(prompt, base=10, lower=None, upper=None):
+
+def input_int(
+        prompt: str,
+        base: int = 10,
+        lower: Optional[int] = None,
+        upper: Optional[int] = None,
+    ) -> int:
     ''' prompt for an integer input until valid '''
 
     while True:
@@ -65,10 +74,10 @@ def input_int(prompt, base=10, lower=None, upper=None):
 
 
 @lru_cache(maxsize=128)
-def class_from_path(path):
+def class_from_path(path: Any) -> Any:
     ''' load an object from the dotted path '''
 
-    if not isinstance(path, (str, bytes)):
+    if not isinstance(path, str):
         return path
 
     parts = path.split('.')
@@ -96,27 +105,27 @@ class OrderedEnum(Enum):
     ''' ordered enum '''
 
     @property
-    def value_comp(self):
+    def value_comp(self) -> Any:
         ''' the value used for comparison '''
         return self.value
 
     # pylint: disable=comparison-with-callable
-    def __ge__(self, other):
+    def __ge__(self, other: Any) -> Union[bool, NotImplemented]:
         if self.__class__ is other.__class__:
             return self.value_comp >= other.value_comp
         return NotImplemented
 
-    def __gt__(self, other):
+    def __gt__(self, other: Any) -> Union[bool, NotImplemented]:
         if self.__class__ is other.__class__:
             return self.value_comp > other.value_comp
         return NotImplemented
 
-    def __le__(self, other):
+    def __le__(self, other: Any) -> Union[bool, NotImplemented]:
         if self.__class__ is other.__class__:
             return self.value_comp <= other.value_comp
         return NotImplemented
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> Union[bool, NotImplemented]:
         if self.__class__ is other.__class__:
             return self.value_comp < other.value_comp
         return NotImplemented
