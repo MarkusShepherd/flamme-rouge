@@ -8,7 +8,8 @@ import logging
 import sys
 
 from itertools import zip_longest
-from random import choice
+
+import inquirer
 
 from .tracks import Track, ALL_TRACKS
 from .const import COLORS
@@ -54,7 +55,17 @@ def _main() -> None:
     track = class_from_path(args.track)
 
     if not track:
-        track = choice(ALL_TRACKS)
+        tracks = [
+            inquirer.questions.TaggedValue(label=t.name, value=t)
+            for t in sorted(ALL_TRACKS, key=lambda t: t.name)]
+        question = inquirer.List(
+            name='track',
+            message='Choose a track',
+            choices=tracks,
+            carousel=True,
+        )
+        answer = inquirer.prompt([question])
+        track = answer['track']
 
     track = track if isinstance(track, Track) else Track.from_sections(track)
     LOGGER.info(track)

@@ -159,12 +159,14 @@ class Track:
 
     def __init__(
             self,
+            name: str,
             sections: Iterable[Section],
             start: int = 5,
             finish: int = -5,
             min_players: int = 3,
             max_players: int = 4,
         ) -> None:
+        self.name = name
         self.sections = tuple(sections)
         self.start = start
         self.finish = finish if finish > 0 else len(self) + finish
@@ -316,8 +318,9 @@ class Track:
         start_pos = start.position - 1 if start is not None and start.position else 0
         finish = max(start_pos, self.finish)
         total = (Section.LANE_STR_WIDTH + 1) * 2 + 1
-        sections = cast(
-            Tuple[Any], self.sections[start_pos:finish]) + ('#' * total,) + self.sections[finish:]
+        sections = (
+            cast(Tuple[Any], (self.name,)) + self.sections[start_pos:finish]
+            + ('#' * total,) + self.sections[finish:])
         return '\n'.join(map(str, sections))
 
     @classmethod
@@ -346,36 +349,47 @@ _SUP: Tuple[Type[Section]] = (Supply,)
 _COB1: Tuple[Type[Section]] = (Cobblestone1,)
 _COB2: Tuple[Type[Section]] = (Cobblestone2,)
 
-AVENUE_CORSO_PASEO = Track.from_sections(_SEC * 73 + _FIN * 5)
+AVENUE_CORSO_PASEO = Track.from_sections(name='AVENUE_CORSO_PASEO', sections=_SEC * 73 + _FIN * 5)
 FIRENZE_MILANO = Track.from_sections(
-    _SEC * 22 + _UP * 5 + _DOWN * 3 + _SEC * 16 + _UP * 7 + _DOWN * 3 + _SEC * 17 + _FIN * 5)
+    name='FIRENZE_MILANO',
+    sections=_SEC * 22 + _UP * 5 + _DOWN * 3 + _SEC * 16
+    + _UP * 7 + _DOWN * 3 + _SEC * 17 + _FIN * 5)
 LA_CLASSICISSIMA = Track.from_sections(
-    _SEC * 14 + _UP * 10 + _DOWN * 4 + _SEC * 12 + _UP * 5 + _DOWN * 4
+    name='LA_CLASSICISSIMA',
+    sections=_SEC * 14 + _UP * 10 + _DOWN * 4 + _SEC * 12 + _UP * 5 + _DOWN * 4
     + _SEC * 5 + _UP * 3 + _DOWN * 3 + _SEC * 13 + _FIN * 5,
     start=4)
 LA_HAUT_MONTAGNE = Track.from_sections(
-    _SEC * 36 + _UP * 7 + _DOWN * 5 + _SEC * 14 + _UP * 12 + _FIN * 4,
+    name='LA_HAUT_MONTAGNE',
+    sections=_SEC * 36 + _UP * 7 + _DOWN * 5 + _SEC * 14 + _UP * 12 + _FIN * 4,
     finish=-4)
 LE_COL_DU_BALLON = Track.from_sections(
-    _SEC * 12 + _UP * 3 + _DOWN * 5 + _SEC * 18 + _UP * 4 + _DOWN * 4
+    name='LE_COL_DU_BALLON',
+    sections=_SEC * 12 + _UP * 3 + _DOWN * 5 + _SEC * 18 + _UP * 4 + _DOWN * 4
     + _SEC * 10 + _UP * 5 + _DOWN * 4 + _SEC * 8 + _FIN * 5,
     start=4)
 PLATEAUX_DE_WALLONIE = Track.from_sections(
-    _SEC * 16 + _UP * 3 + _DOWN * 3 + _SEC * 6
+    name='PLATEAUX_DE_WALLONIE',
+    sections=_SEC * 16 + _UP * 3 + _DOWN * 3 + _SEC * 6
     + _UP * 2 + _DOWN * 2 + _SEC * 34 + _UP * 2 + _SEC * 5 + _FIN * 5,
     start=4)
 RONDE_VAN_WEVELGEM = Track.from_sections(
-    _SEC * 46 + _UP * 3 + _DOWN * 5 + _SEC * 6 + _UP * 5 + _DOWN * 3 + _SEC * 5 + _FIN * 5)
+    name='RONDE_VAN_WEVELGEM',
+    sections=_SEC * 46 + _UP * 3 + _DOWN * 5 + _SEC * 6
+    + _UP * 5 + _DOWN * 3 + _SEC * 5 + _FIN * 5)
 STAGE_7 = Track.from_sections(
-    _SEC * 12 + _SUP * 5 + _SEC * 5 + _UP * 6 + _DOWN * 2 + _SEC * 10
+    name='STAGE_7',
+    sections=_SEC * 12 + _SUP * 5 + _SEC * 5 + _UP * 6 + _DOWN * 2 + _SEC * 10
     + _SUP * 5 + _SEC * 7 + _UP * 5 + _DOWN * 3 + _SEC * 13 + _FIN * 5)
 STAGE_7_5_6 = Track.from_sections(
-    _SEC3 * 11 + _SEC + _SUP * 5 + _SEC * 5 + _UP * 6 + _DOWN * 2 + _SEC * 10 + _SUP * 5
+    name='STAGE_7_5_6',
+    sections=_SEC3 * 11 + _SEC + _SUP * 5 + _SEC * 5 + _UP * 6 + _DOWN * 2 + _SEC * 10 + _SUP * 5
     + _SEC * 7 + _UP * 5 + _DOWN * 3 + _SEC * 4 + _SEC3 * 2 + _SEC * 10 + _FIN * 5,
     min_players=5,
     max_players=6)
 STAGE_9 = Track.from_sections(
-    _SEC * 12 + _SUP * 5 + _SEC * 3
+    name='STAGE_9',
+    sections=_SEC * 12 + _SUP * 5 + _SEC * 3
     + _COB1 + _COB2 + _COB1 + _COB2 + _COB1 * 3 + _COB2 + _COB1
     + _SEC * 11 + _SUP * 5 + _SEC * 6
     + _COB1 + _COB2 + _COB1 * 4 + _COB2 + _COB1
