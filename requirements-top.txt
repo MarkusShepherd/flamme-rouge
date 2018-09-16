@@ -1,7 +1,9 @@
 colorama
+dataclasses
 gym
 inquirer
 keras
 keras-rl
-# tensorflow
+numpy
+tensorflow
 termcolor

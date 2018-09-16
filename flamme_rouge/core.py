@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 from .actions import (
     Action, RaceAction, SelectCardAction, SelectCyclistAction, SelectStartPositionAction)
+from .utils import clear_list
 
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import,unused-import
@@ -110,6 +111,11 @@ class Game:
             team for team in self.teams if any(c.curr_card is None for c in team.cyclists))
 
     @property
+    def sorted_teams(self) -> Tuple['Team', ...]:
+        ''' teams in race order '''
+        return tuple(clear_list(c.team for c in self.track.cyclists()))
+
+    @property
     def cyclists(self) -> Tuple['Cyclist', ...]:
         ''' all cyclists in the race '''
         return tuple(c for team in self.teams for c in team.cyclists)
@@ -120,7 +126,8 @@ class Game:
         sections = self.track.available_start
 
         return tuple(
-            SelectStartPositionAction(c, s.position) for c, s in product(cyclists, sections))
+            SelectStartPositionAction(cyclist=c, position=s.position)
+            for c, s in product(cyclists, sections))
 
     def available_actions(self, team: 'Team') -> Tuple[Action, ...]:
         ''' available actions to that team '''

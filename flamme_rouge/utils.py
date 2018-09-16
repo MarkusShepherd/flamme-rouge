@@ -4,15 +4,21 @@
 
 import logging
 
+from collections import OrderedDict
 from enum import Enum
 from functools import lru_cache
 from importlib import import_module
 from itertools import tee
-from typing import Any, Iterable, Optional, Tuple, TypeVar, Union
+from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 
 LOGGER = logging.getLogger(__name__)
 
 Typed = TypeVar('Typed')
+
+
+def clear_list(items: Iterable[Optional[Typed]]) -> List[Typed]:
+    ''' return unique items in order of first ocurrence '''
+    return list(OrderedDict.fromkeys(i for i in items if i is not None))
 
 
 def window(iterable: Iterable[Typed], size: int = 2) -> Iterable[Tuple[Typed, ...]]:
@@ -110,22 +116,22 @@ class OrderedEnum(Enum):
         return self.value
 
     # pylint: disable=comparison-with-callable
-    def __ge__(self, other: Any) -> Union[bool, NotImplemented]:
+    def __ge__(self, other: Any) -> bool:
         if self.__class__ is other.__class__:
             return self.value_comp >= other.value_comp
         return NotImplemented
 
-    def __gt__(self, other: Any) -> Union[bool, NotImplemented]:
+    def __gt__(self, other: Any) -> bool:
         if self.__class__ is other.__class__:
             return self.value_comp > other.value_comp
         return NotImplemented
 
-    def __le__(self, other: Any) -> Union[bool, NotImplemented]:
+    def __le__(self, other: Any) -> bool:
         if self.__class__ is other.__class__:
             return self.value_comp <= other.value_comp
         return NotImplemented
 
-    def __lt__(self, other: Any) -> Union[bool, NotImplemented]:
+    def __lt__(self, other: Any) -> bool:
         if self.__class__ is other.__class__:
             return self.value_comp < other.value_comp
         return NotImplemented

@@ -77,6 +77,13 @@ class Section:
                 cyclist.section = None
         return False
 
+    def lane(self, cyclist: 'Cyclist') -> Optional[int]:
+        ''' lane number for the given cyclist '''
+        for lane, occupant in enumerate(self._cyclists):
+            if cyclist == occupant:
+                return lane
+        return None
+
     def reset(self) -> 'Section':
         ''' reset this section '''
         self._cyclists = deque(maxlen=self.lanes)

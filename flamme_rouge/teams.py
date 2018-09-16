@@ -208,6 +208,14 @@ class Team:
         return tuple(c for c in self.cyclists if not c.finished and c.curr_card is None)
 
     @property
+    def sorted_cyclists(self) -> Tuple[Cyclist, ...]:
+        ''' cyclists in race order '''
+        return tuple(sorted(
+            self.cyclists,
+            key=lambda c: (-math.inf, -math.inf, isinstance(c, Rouleur)) if c.section is None
+            else (c.section.position, c.section.lane(c), isinstance(c, Rouleur))))
+
+    @property
     def need_to_select_cyclist(self) -> bool:
         ''' time to select a cyclist '''
         return all(c.hand is None for c in self.available_cyclists)
