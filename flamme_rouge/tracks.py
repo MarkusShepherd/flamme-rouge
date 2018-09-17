@@ -87,6 +87,7 @@ class Section:
     def reset(self) -> 'Section':
         ''' reset this section '''
         self._cyclists = deque(maxlen=self.lanes)
+        LOGGER.debug('position: %d, cyclists: %s', self.position, self.cyclists)
         return self
 
     def __str__(self) -> str:
@@ -304,6 +305,10 @@ class Track:
 
         for section in self.sections:
             section.reset()
+        LOGGER.debug(
+            'start: %d, finish: %d, available start: <%s>, finished: %s, track: %s',
+            self.start, self.finish, ', '.join(str(s.position) for s in self.available_start),
+            self.finished(), self)
         return self
 
     def compare(

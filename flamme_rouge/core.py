@@ -79,6 +79,11 @@ class Game:
         self.teams = tuple(teams)
         self.phase = Phase.START
         self.rounds_played = 0
+
+        LOGGER.debug(
+            'game phase: %s; rounds: %d; finished: %s; winner: %s; active: %s',
+            self.phase, self.rounds_played, self.finished, self.winner, self.active_teams)
+
         return self
 
     @property

@@ -128,8 +128,11 @@ class Peloton(Team):
 
         super().__init__(name=name or 'Peloton', **kwargs)
 
+    def reset(self) -> 'Peloton':
+        super().reset()
         self.curr_card = None
         self._starting_positions = None
+        return self
 
     def starting_position(
             self,
@@ -166,7 +169,8 @@ class Peloton(Team):
 class Muscle(Team):
     ''' muscle team '''
 
-    muscle_deck = Sprinteur.initial_deck + (Card.CARD_5,)
+    muscle_deck: Tuple[Card] = Sprinteur.initial_deck + (Card.CARD_5,)
+    _starting_positions: Optional[Dict[Cyclist, 'Section']]
 
     def __init__(self, name: Optional[str] = None, **kwargs) -> None:
         kwargs['cyclists'] = (Sprinteur(team=self, deck=self.muscle_deck), Rouleur(team=self))
@@ -174,9 +178,14 @@ class Muscle(Team):
         kwargs['order'] = 1
         kwargs['hand_size'] = 1
 
+        self._starting_positions = None
+
         super().__init__(name=name or 'Muscle', **kwargs)
 
+    def reset(self) -> 'Muscle':
+        super().reset()
         self._starting_positions = None
+        return self
 
     def starting_position(
             self,

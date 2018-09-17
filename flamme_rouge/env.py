@@ -3,6 +3,7 @@
 ''' RL environment '''
 
 import logging
+import os
 import sys
 
 from collections import Counter
@@ -31,6 +32,7 @@ from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
 from .tracks import ALL_TRACKS, Section, Track
 
 LOGGER = logging.getLogger(__name__)
+WEIGHTS_FILE = 'fr_weights.h5f'
 
 
 class FRAction(Enum):
@@ -265,18 +267,19 @@ class FRData(ArrayData):
 #         return action
 
 
-def _to_action(number: int, team: Team) -> Action:
+def _to_action(number: int, team: Team) -> Optional[Action]:
     action = FR_ACTIONS[number]
-
-    LOGGER.debug('_to_action(%d, %r) = %r', number, team, action)
 
     if action in (FRAction.CYCLIST_SPRINTEUR, FRAction.CYCLIST_ROULEUR):
         ctype = action.value
-        cyclist = next(c for c in team.available_cyclists if isinstance(c, ctype))
-        return SelectCyclistAction(cyclist)
+        cyclist = next((c for c in team.available_cyclists if isinstance(c, ctype)), None)
+        return SelectCyclistAction(cyclist) if cyclist is not None else None
 
     cyclist = team.cyclist_to_select_card
-    assert cyclist is not None
+
+    if cyclist is None:
+        return None
+
     action = action.value(cyclist=cyclist)
     assert isinstance(action, SelectCardAction)
     return action
@@ -346,7 +349,7 @@ class FREnv(Env):
 
     reward_range = (0, 1)
     action_space = Discrete(len(FRAction))
-    observation_space = Box(low=0, high=77, shape=(524,))
+    observation_space = Box(low=-1, high=77, shape=(524,))
 
     game: Game
     _track: Optional[Track]
@@ -364,18 +367,27 @@ class FREnv(Env):
         self.opponents = opponents or self.opponents
         self._track = track
 
+    def _play_others(self) -> None:
+        while True:
+            teams = [team for team in self.game.active_teams if team != self.team]
+            if not teams:
+                return
+            team = choice(teams)
+            team_action = team.select_action(self.game)
+            assert team_action is not None
+            self.game.take_action(team, team_action)
+
     def reset(self) -> np.ndarray:
         self.track = self._track if self._track is not None else choice(FREnv.TRACKS)
         teams = (self.team,) + self.opponents
         self.game = Game(track=self.track, teams=teams)
-        self.game.reset()
 
-        while self.game.phase is not Phase.RACE or self.game.active_teams != (self.team,):
-            available_teams = [t for t in self.game.active_teams if t != self.team]
-            assert available_teams
-            team = available_teams[0]
-            action = self.team.select_action(self.game)
-            self.game.take_action(team, action)
+        while self.game.phase is Phase.START:
+            self.game.play_action()
+        assert self.game.phase is Phase.RACE
+        self._play_others()
+
+        LOGGER.debug(self.game)
 
         return self.observation
 
@@ -390,8 +402,11 @@ class FREnv(Env):
             self.game.take_action(self.team, act)
 
         except Exception as exp:
-            LOGGER.exception(exp)
-            return self.observation, -1000, True, {}
+            # LOGGER.exception(exp)
+            # LOGGER.info(
+            #     'action: %d / %s / %s, available actions: %s',
+            #     action, FR_ACTIONS[action], act, self.game.available_actions(self.team))
+            return self.observation, 0, True, {}
 
         if self.game.finished:
             winner = self.game.winner
@@ -399,21 +414,12 @@ class FREnv(Env):
             assert winner.team is not None
             return self.observation, winner.team == self.team, True, {}
 
-        while True:
-            teams = [team for team in self.game.active_teams if team != self.team]
-
-            if not teams:
-                break
-
-            team = choice(teams)
-            team_action = team.select_action(self.game)
-            assert team_action is not None
-            self.game.take_action(team, team_action)
+        self._play_others()
 
         assert not self.game.finished
         assert self.game.phase is Phase.RACE
         assert self.game.active_teams == (self.team,)
-        return self.observation, 0, False, {}
+        return self.observation, .001, False, {}
 
     def render(self, mode='human', close=False):
         print(self.game)
@@ -436,7 +442,7 @@ class FREnv(Env):
 def _main():
     logging.basicConfig(
         stream=sys.stderr,
-        level=logging.DEBUG, # if args.verbose > 0 else logging.INFO,
+        level=logging.WARNING, # if args.verbose > 0 else logging.INFO,
         format='%(levelname)-4.4s [%(name)s:%(lineno)s] %(message)s',
     )
 
@@ -444,11 +450,11 @@ def _main():
 
     model = Sequential()
     model.add(Flatten(input_shape=(1,) + FREnv.observation_space.shape))
-    model.add(Dense(64))
+    model.add(Dense(nb_actions * 16))
     model.add(Activation('relu'))
-    model.add(Dense(32))
+    model.add(Dense(nb_actions * 4))
     model.add(Activation('relu'))
-    model.add(Dense(16))
+    model.add(Dense(nb_actions * 2))
     model.add(Activation('relu'))
     model.add(Dense(nb_actions))
     model.add(Activation('linear'))
@@ -457,16 +463,27 @@ def _main():
     memory = SequentialMemory(limit=50000, window_length=1)
     policy = BoltzmannQPolicy()
     agent = DQNAgent(
-        model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
-        target_model_update=1e-2, policy=policy, test_policy=policy)
+        model=model,
+        gamma=.99,
+        nb_actions=nb_actions,
+        memory=memory,
+        nb_steps_warmup=50,
+        target_model_update=1e-2,
+        policy=policy,
+        test_policy=policy,
+    )
     agent.compile(Adam(lr=1e-3), metrics=['mae'])
 
-    env = FREnv(team=AgentTeam(agent=agent))
-    agent.fit(env, nb_steps=50000, visualize=False, verbose=2)
+    if os.path.isfile(WEIGHTS_FILE):
+        print(f'loading pre-trained weights from {WEIGHTS_FILE}')
+        agent.load_weights(WEIGHTS_FILE)
 
-    agent.save_weights('fr_weights.h5f', overwrite=True)
+    env = FREnv(team=AgentTeam(agent=agent), track=ALL_TRACKS[0])
+    agent.fit(env, nb_steps=500_000, visualize=False, verbose=1)
 
-    agent.test(env, nb_episodes=5, visualize=True)
+    agent.save_weights(WEIGHTS_FILE, overwrite=True)
+
+    agent.test(env, nb_episodes=1, visualize=True)
 
 
 if __name__ == '__main__':

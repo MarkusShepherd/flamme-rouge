@@ -54,12 +54,12 @@ class Cyclist:
             self.initial_deck = tuple(deck)
         self.handicap = handicap
 
-        self.reset()
-
         self.team = team
         self.hand_size = hand_size or 4
 
         self.colors = colors
+
+        self.reset()
 
     def reset(self) -> 'Cyclist':
         ''' reset this cyclist '''
@@ -73,6 +73,13 @@ class Cyclist:
         self.section = None
         self.time = 0
         self.finished = False
+
+        LOGGER.debug(
+            '%s - deck: %s, hand: %s, hand size: %d, card: %s, discard: %s, ' +
+            'handicap: %d, section: %s, time: %d, finished: %s',
+            self, ', '.join(map(str, self.deck)), self.hand, self.hand_size,
+            self.curr_card, self.discard_pile, handicap, self.section, self.time, self.finished)
+
         return self
 
     @property
@@ -324,10 +331,11 @@ class Team:
         ''' reset this team '''
         for cyclist in self.cyclists:
             cyclist.reset()
+        LOGGER.debug('team <%s> reset', self)
         return self
 
     def __str__(self) -> str:
-        return self.name
+        return getattr(self, 'name', None) or self.__class__.__name__
 
 class Regular(Team):
     ''' team with rouleur and sprinteur '''
