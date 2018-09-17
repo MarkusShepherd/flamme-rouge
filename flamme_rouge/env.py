@@ -22,9 +22,9 @@ from keras.optimizers import Adam
 from rl.agents.dqn import DQNAgent
 from rl.core import Agent, Env
 from rl.memory import SequentialMemory
-from rl.policy import BoltzmannQPolicy
+from rl.policy import BoltzmannQPolicy, LinearAnnealedPolicy, MaxBoltzmannQPolicy
 
-from .actions import Action, SelectCardAction, SelectCyclistAction
+from .actions import SelectCardAction
 from .cards import Card
 from .core import Game, Phase
 from .strategies import Muscle, Peloton
@@ -119,12 +119,16 @@ class FROwnCyclistData(ArrayData):
         lane = cyclist.section.lane(cyclist)
         assert lane is not None
 
+        hand = [c.value_front for c in cyclist.hand or ()]
+        hand = hand[:AgentTeam.hand_size]
+        hand += [0] * (AgentTeam.hand_size - len(hand))
+
         return cls(
             exhaustion=cyclist.team.exhaustion,
             position=cyclist.section.position,
             lane=lane,
             draw_pile=_count_cards(cyclist.deck),
-            hand=_count_cards(cyclist.hand or ()),
+            hand=tuple(sorted(hand)),
             discard_pile=_count_cards(cyclist.discard_pile or ()),
             curr_card_selected=cyclist.curr_card is not None,
             curr_card=0 if cyclist.curr_card is None else cyclist.curr_card.value_front,
@@ -201,92 +205,10 @@ class FRData(ArrayData):
         )
 
 
-# class FRPolicy(BoltzmannQPolicy):
-#     ''' policy '''
-
-#     def select_action(
-#             self,
-#             q_values: np.ndarray,
-#             available_actions: Optional[Iterable[int]] = None,
-#         ) -> int:
-#         if available_actions is None:
-#             return super().select_action(q_values)
-
-#         available_actions = frozenset(available_actions)
-
-#         assert available_actions
-
-#         if len(available_actions) == 1:
-#             return next(iter(available_actions))
-
-#         assert q_values.ndim == 1
-#         q_values = q_values.astype('float64')
-#         nb_actions = q_values.shape[0]
-#         assert min(available_actions) >= 0
-#         assert max(available_actions) < nb_actions
-
-#         exp_values = np.exp(np.clip(q_values / self.tau, self.clip[0], self.clip[1]))
-#         for i in range(nb_actions):
-#             if i not in available_actions:
-#                 exp_values[i] = 0
-#         total = np.sum(exp_values)
-#         assert total > 0
-#         probs = exp_values / np.sum(exp_values)
-#         action = np.random.choice(range(nb_actions), p=probs)
-#         return action
-
-
-# class FRAgent(DQNAgent):
-#     ''' agent '''
-
-#     game: Optional[Game] = None
-
-#     def __init__(self, **kwargs) -> None:
-#         policy = FRPolicy()
-#         kwargs['policy'] = policy
-#         kwargs['test_policy'] = policy
-#         super().__init__(**kwargs)
-
-
-#     def forward(self, observation: Any) -> int:
-#         if available_actions is None:
-#             return super().forward(observation)
-
-#         state = self.memory.get_recent_state(observation)
-#         q_values = self.compute_q_values(state)
-#         if self.training:
-#             action = self.policy.select_action(
-#                 q_values=q_values, available_actions=available_actions)
-#         else:
-#             action = self.test_policy.select_action(
-#                 q_values=q_values, available_actions=available_actions)
-
-#         self.recent_observation = observation
-#         self.recent_action = action
-
-#         return action
-
-
-def _to_action(number: int, team: Team) -> Optional[Action]:
-    action = FR_ACTIONS[number]
-
-    if action in (FRAction.CYCLIST_SPRINTEUR, FRAction.CYCLIST_ROULEUR):
-        ctype = action.value
-        cyclist = next((c for c in team.available_cyclists if isinstance(c, ctype)), None)
-        return SelectCyclistAction(cyclist) if cyclist is not None else None
-
-    cyclist = team.cyclist_to_select_card
-
-    if cyclist is None:
-        return None
-
-    action = action.value(cyclist=cyclist)
-    assert isinstance(action, SelectCardAction)
-    return action
-
-
 class AgentTeam(Regular):
     ''' agent team '''
+
+    hand_size = 4
 
     def __init__(
             self,
@@ -295,6 +217,7 @@ class AgentTeam(Regular):
             max_tries: int = 10,
             **kwargs,
         ) -> None:
+        kwargs['hand_size'] = AgentTeam.hand_size
         super().__init__(name=name or 'Agent', **kwargs)
         self.agent = agent
         self.max_tries = max_tries
@@ -309,37 +232,23 @@ class AgentTeam(Regular):
         assert cyclists
         return cyclists[0], game.track.available_start[-1]
 
-    def _select_action(self, game: Game) -> Optional[Action]:
-        observation = FRData.from_game(game, self).to_array()
-
-        for _ in range(self.max_tries):
-            number = self.agent.forward(observation)
-            action = _to_action(number, self)
-            if action in game.available_actions(self):
-                return action
-
-        LOGGER.warning('did not select an action after %d attempts', self.max_tries)
-
-        return None
-
     def next_cyclist(self, game: Optional[Game] = None) -> Optional[Cyclist]:
-        action = self._select_action(game) if game is not None else None
-        if action is None:
-            return super().next_cyclist(game)
-        assert isinstance(action, SelectCyclistAction)
-        return action.cyclist
+        cyclists = self.available_cyclists
+        return choice(cyclists) if cyclists else None
 
     def choose_card(
             self,
             cyclist: Cyclist,
             game: Optional['Game'] = None,
         ) -> Optional[Card]:
-        action = self._select_action(game) if game is not None else None
-        if action is None:
-            return super().choose_card(cyclist, game)
-        assert isinstance(action, SelectCardAction)
-        assert action.cyclist == cyclist
-        return action.card
+        if not cyclist.hand or len(cyclist.hand) < self.hand_size:
+            LOGGER.warning('%s does not have enough cards on hand')
+            return None
+
+        observation = FRData.from_game(game, self).to_array()
+        hand = sorted(cyclist.hand)
+        number = self.agent.forward(observation)
+        return hand[number]
 
 
 class FREnv(Env):
@@ -347,14 +256,14 @@ class FREnv(Env):
 
     TRACKS = tuple(track for track in ALL_TRACKS if len(track) == 78)
 
-    reward_range = (-1, 1)
-    action_space = Discrete(len(FRAction))
-    observation_space = Box(low=-1, high=77, shape=(524,))
-
     game: Game
     _track: Optional[Track]
     track: Track
     opponents: Tuple[Team, ...] = (Peloton(), Muscle())
+
+    reward_range = (0, len(opponents))
+    action_space = Discrete(AgentTeam.hand_size)
+    observation_space = Box(low=-1, high=77, shape=(512,))
 
     def __init__(
             self,
@@ -368,10 +277,17 @@ class FREnv(Env):
         self._track = track
 
     def _play_others(self) -> None:
+        while self.game.phase is Phase.START:
+            self.game.play_action()
+
         while True:
             teams = [team for team in self.game.active_teams if team != self.team]
             if not teams:
-                return
+                if not self.game.active_teams or all(
+                        isinstance(a, SelectCardAction)
+                        for a in self.game.available_actions(self.team)):
+                    return
+                teams = [self.team]
             team = choice(teams)
             team_action = team.select_action(self.game)
             assert team_action is not None
@@ -382,37 +298,36 @@ class FREnv(Env):
         teams = (self.team,) + self.opponents
         self.game = Game(track=self.track, teams=teams)
 
-        while self.game.phase is Phase.START:
-            self.game.play_action()
-        assert self.game.phase is Phase.RACE
         self._play_others()
+        assert self.game.phase is Phase.RACE
 
         LOGGER.debug(self.game)
 
         return self.observation
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
+        assert 0 <= action < self.action_space.n
         assert not self.game.finished
         assert self.game.phase is Phase.RACE
         assert self.game.active_teams == (self.team,)
+        cyclist = self.team.cyclist_to_select_card
+        assert cyclist is not None
+        assert cyclist.hand
+        assert len(cyclist.hand) == self.action_space.n
 
-        act = _to_action(action, self.team)
-
-        try:
-            self.game.take_action(self.team, act)
-
-        except Exception as exp:
-            # LOGGER.exception(exp)
-            # LOGGER.info(
-            #     'action: %d / %s / %s, available actions: %s',
-            #     action, FR_ACTIONS[action], act, self.game.available_actions(self.team))
-            return self.observation, -1, False, {}
+        hand = sorted(cyclist.hand)
+        card = hand[action]
+        act = SelectCardAction(cyclist=cyclist, card=card)
+        self.game.take_action(self.team, act)
 
         if self.game.finished:
             winner = self.game.winner
             assert winner is not None
             assert winner.team is not None
-            reward = float(winner.team == self.team)
+            teams = self.game.sorted_teams
+            assert teams[0] == winner.team
+            position = teams.index(self.team) + 1
+            reward = len(self.game.teams) - position
             return self.observation, reward, True, {}
 
         self._play_others()
@@ -451,10 +366,10 @@ def _main():
 
     model = Sequential()
     model.add(Flatten(input_shape=(1,) + FREnv.observation_space.shape))
-    model.add(Dense(nb_actions * 16))
+    model.add(Dense(nb_actions * 8))
     model.add(Activation('relu'))
-    model.add(Dense(nb_actions * 4))
-    model.add(Activation('relu'))
+    # model.add(Dense(nb_actions * 4))
+    # model.add(Activation('relu'))
     model.add(Dense(nb_actions * 2))
     model.add(Activation('relu'))
     model.add(Dense(nb_actions))
@@ -462,7 +377,14 @@ def _main():
     print(model.summary())
 
     memory = SequentialMemory(limit=50000, window_length=1)
-    policy = BoltzmannQPolicy()
+    policy = LinearAnnealedPolicy(
+        inner_policy=MaxBoltzmannQPolicy(),
+        attr='eps',
+        value_max=.9,
+        value_min=.1,
+        value_test=0,
+        nb_steps=100_000,
+    ) # BoltzmannQPolicy()
     agent = DQNAgent(
         model=model,
         gamma=.99,
@@ -479,7 +401,7 @@ def _main():
         print(f'loading pre-trained weights from {WEIGHTS_FILE}')
         agent.load_weights(WEIGHTS_FILE)
 
-    env = FREnv(team=AgentTeam(agent=agent), track=ALL_TRACKS[0])
+    env = FREnv(team=AgentTeam(agent=agent))
     agent.fit(env, nb_steps=500_000, visualize=False, verbose=1)
 
     agent.save_weights(WEIGHTS_FILE, overwrite=True)
