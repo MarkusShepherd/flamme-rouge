@@ -75,10 +75,12 @@ class Cyclist:
         self.finished = False
 
         LOGGER.debug(
-            '%s - deck: %s, hand: %s, hand size: %d, card: %s, discard: %s, ' +
+            '%s - deck: %s, hand: %s, hand size: %d, card: %s, discard: %s, '
             'handicap: %d, section: %s, time: %d, finished: %s',
             self, ', '.join(map(str, self.deck)), self.hand, self.hand_size,
             self.curr_card, self.discard_pile, handicap, self.section, self.time, self.finished)
+
+        self._string = None
 
         return self
 

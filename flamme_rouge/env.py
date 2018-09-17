@@ -347,7 +347,7 @@ class FREnv(Env):
 
     TRACKS = tuple(track for track in ALL_TRACKS if len(track) == 78)
 
-    reward_range = (0, 1)
+    reward_range = (-1, 1)
     action_space = Discrete(len(FRAction))
     observation_space = Box(low=-1, high=77, shape=(524,))
 
@@ -406,20 +406,21 @@ class FREnv(Env):
             # LOGGER.info(
             #     'action: %d / %s / %s, available actions: %s',
             #     action, FR_ACTIONS[action], act, self.game.available_actions(self.team))
-            return self.observation, 0, True, {}
+            return self.observation, -1, False, {}
 
         if self.game.finished:
             winner = self.game.winner
             assert winner is not None
             assert winner.team is not None
-            return self.observation, winner.team == self.team, True, {}
+            reward = float(winner.team == self.team)
+            return self.observation, reward, True, {}
 
         self._play_others()
 
         assert not self.game.finished
         assert self.game.phase is Phase.RACE
         assert self.game.active_teams == (self.team,)
-        return self.observation, .001, False, {}
+        return self.observation, 0, False, {}
 
     def render(self, mode='human', close=False):
         print(self.game)
