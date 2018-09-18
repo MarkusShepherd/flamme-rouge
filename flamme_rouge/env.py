@@ -7,11 +7,11 @@ import os
 import sys
 
 from collections import Counter
-from dataclasses import astuple, dataclass, is_dataclass
 from enum import Enum
 from functools import partial
 from random import choice
 from typing import Any, Iterable, Generator, Optional, Tuple
+from dataclasses import astuple, dataclass, is_dataclass
 
 import numpy as np
 
@@ -22,7 +22,7 @@ from keras.optimizers import Adam
 from rl.agents.dqn import DQNAgent
 from rl.core import Agent, Env
 from rl.memory import SequentialMemory
-from rl.policy import BoltzmannQPolicy, LinearAnnealedPolicy, MaxBoltzmannQPolicy
+from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy # BoltzmannQPolicy
 
 from .actions import SelectCardAction
 from .cards import Card
@@ -259,7 +259,7 @@ class FREnv(Env):
     game: Game
     _track: Optional[Track]
     track: Track
-    opponents: Tuple[Team, ...] = (Peloton(), Muscle())
+    opponents: Tuple[Team, ...] = (Peloton(colors='red'), Muscle(colors='green'))
 
     reward_range = (0, len(opponents))
     action_space = Discrete(AgentTeam.hand_size)
@@ -363,6 +363,7 @@ def _main():
     )
 
     nb_actions = FREnv.action_space.n
+    nb_steps = 100_000
 
     model = Sequential()
     model.add(Flatten(input_shape=(1,) + FREnv.observation_space.shape))
@@ -380,10 +381,10 @@ def _main():
     policy = LinearAnnealedPolicy(
         inner_policy=MaxBoltzmannQPolicy(),
         attr='eps',
-        value_max=.9,
-        value_min=.1,
+        value_max=1,
+        value_min=.05,
         value_test=0,
-        nb_steps=100_000,
+        nb_steps=nb_steps // 2,
     ) # BoltzmannQPolicy()
     agent = DQNAgent(
         model=model,
@@ -401,8 +402,8 @@ def _main():
         print(f'loading pre-trained weights from {WEIGHTS_FILE}')
         agent.load_weights(WEIGHTS_FILE)
 
-    env = FREnv(team=AgentTeam(agent=agent))
-    agent.fit(env, nb_steps=500_000, visualize=False, verbose=1)
+    env = FREnv(team=AgentTeam(agent=agent, colors='blue'))
+    agent.fit(env, nb_steps=nb_steps, visualize=False, verbose=1)
 
     agent.save_weights(WEIGHTS_FILE, overwrite=True)
 

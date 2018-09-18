@@ -2,8 +2,8 @@
 
 ''' actions '''
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     # pylint: disable=cyclic-import,unused-import
