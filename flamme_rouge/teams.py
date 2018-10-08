@@ -106,12 +106,12 @@ class Cyclist:
             else COLORS.get(value.lower(), {}) if isinstance(value, str)
             else value)
 
-    def _draw(self) -> Card:
+    def _draw(self) -> Optional[Card]:
         if not self.deck:
             self.deck = self.discard_pile
             self.discard_pile = []
             shuffle(self.deck)
-        return self.deck.pop(choice(range(len(self.deck)))) if self.deck else Card.EXHAUSTION
+        return self.deck.pop(choice(range(len(self.deck)))) if self.deck else None
 
     def draw_hand(self, size: Optional[int] = None) -> None:
         ''' draw a new hand '''
@@ -119,7 +119,7 @@ class Cyclist:
         size = self.hand_size if size is None else size
 
         self.discard_hand()
-        self.hand = [self._draw() for _ in range(size)]
+        self.hand = [card for card in (self._draw() for _ in range(size)) if card is not None]
         if not self.hand:
             self.hand = [Card.EXHAUSTION]
 

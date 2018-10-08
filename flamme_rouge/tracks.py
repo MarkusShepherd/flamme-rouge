@@ -7,7 +7,8 @@ import re
 
 from collections import deque
 from typing import (
-    TYPE_CHECKING, Any, Deque, Generator, Iterable, Iterator, Optional, Tuple, Type, Union, cast)
+    TYPE_CHECKING, Any, Deque, Generator, Iterable, Iterator,
+    Optional, Tuple, Type, Union, cast, overload)
 
 from .cards import Card
 from .utils import class_from_path, window
@@ -184,7 +185,16 @@ class Track:
     def __len__(self) -> int:
         return len(self.sections)
 
-    def __getitem__(self, key) -> Section:
+    # pylint: disable=function-redefined
+    @overload
+    def __getitem__(self, key: int) -> Section:
+        pass
+
+    @overload
+    def __getitem__(self, key: slice) -> Tuple[Section, ...]:
+        pass
+
+    def __getitem__(self, key):
         return self.sections[key]
 
     def __iter__(self) -> Iterator[Section]:

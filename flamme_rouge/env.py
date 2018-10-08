@@ -10,7 +10,7 @@ from collections import Counter
 from enum import Enum
 from functools import partial
 from random import choice
-from typing import Any, Iterable, Generator, Optional, Tuple
+from typing import Any, Iterable, List, Generator, Optional, Tuple
 from dataclasses import astuple, dataclass, is_dataclass
 
 import numpy as np
@@ -24,7 +24,7 @@ from rl.core import Agent, Env
 from rl.memory import SequentialMemory
 from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy # BoltzmannQPolicy
 
-from .actions import SelectCardAction
+from .actions import Action, SelectCardAction, SelectCyclistAction
 from .cards import Card
 from .core import Game, Phase
 from .strategies import Muscle, Peloton
@@ -119,16 +119,12 @@ class FROwnCyclistData(ArrayData):
         lane = cyclist.section.lane(cyclist)
         assert lane is not None
 
-        hand = [c.value_front for c in cyclist.hand or ()]
-        hand = hand[:AgentTeam.hand_size]
-        hand += [0] * (AgentTeam.hand_size - len(hand))
-
         return cls(
             exhaustion=cyclist.team.exhaustion,
             position=cyclist.section.position,
             lane=lane,
             draw_pile=_count_cards(cyclist.deck),
-            hand=tuple(sorted(hand)),
+            hand=_count_cards(cyclist.hand or ()),
             discard_pile=_count_cards(cyclist.discard_pile or ()),
             curr_card_selected=cyclist.curr_card is not None,
             curr_card=0 if cyclist.curr_card is None else cyclist.curr_card.value_front,
@@ -179,13 +175,8 @@ class FRData(ArrayData):
     start: int
     finish: int
     sections: Tuple[FRSectionData, ...]
-    own_cyclists: Tuple[FROwnCyclistData, FROwnCyclistData]
-    other_cyclists: Tuple[
-        FROtherCyclistData, FROtherCyclistData,
-        FROtherCyclistData, FROtherCyclistData,
-        FROtherCyclistData, FROtherCyclistData,
-        FROtherCyclistData, FROtherCyclistData,
-        FROtherCyclistData, FROtherCyclistData]
+    own_cyclists: Tuple[FROwnCyclistData, ...] # expected len: 2
+    other_cyclists: Tuple[FROtherCyclistData, ...] # expected len: 10
 
     @classmethod
     def from_game(cls, game: Game, team: Team) -> 'FRData':
@@ -193,7 +184,8 @@ class FRData(ArrayData):
 
         own_cyclists = sorted(
             team.sorted_cyclists, key=lambda c: (c.curr_card is not None, c.hand is None))
-        other_cyclists = [c for t in game.sorted_teams if t != team for c in t.sorted_cyclists]
+        other_cyclists: List[Optional[Cyclist]] = [
+            c for t in game.sorted_teams if t != team for c in t.sorted_cyclists]
         other_cyclists += [None] * (10 - len(other_cyclists))
 
         return cls(
@@ -203,6 +195,24 @@ class FRData(ArrayData):
             own_cyclists=tuple(map(FROwnCyclistData.from_cyclist, own_cyclists)),
             other_cyclists=tuple(map(FROtherCyclistData.from_cyclist, other_cyclists)),
         )
+
+
+def _to_action(number: int, team: Team) -> Optional[Action]:
+    action = FR_ACTIONS[number]
+
+    if action in (FRAction.CYCLIST_SPRINTEUR, FRAction.CYCLIST_ROULEUR):
+        ctype = action.value
+        cyclist = next((c for c in team.available_cyclists if isinstance(c, ctype)), None)
+        return SelectCyclistAction(cyclist) if cyclist is not None else None
+
+    cyclist = team.cyclist_to_select_card
+
+    if cyclist is None:
+        return None
+
+    action = action.value(cyclist=cyclist)
+    assert isinstance(action, SelectCardAction)
+    return action
 
 
 class AgentTeam(Regular):
@@ -232,23 +242,37 @@ class AgentTeam(Regular):
         assert cyclists
         return cyclists[0], game.track.available_start[-1]
 
+    def _select_action(self, game: Game) -> Optional[Action]:
+        observation = FRData.from_game(game, self).to_array()
+
+        for _ in range(self.max_tries):
+            number = self.agent.forward(observation)
+            action = _to_action(number, self)
+            if action in game.available_actions(self):
+                return action
+
+        LOGGER.warning('did not select an action after %d attempts', self.max_tries)
+
+        return None
+
     def next_cyclist(self, game: Optional[Game] = None) -> Optional[Cyclist]:
-        cyclists = self.available_cyclists
-        return choice(cyclists) if cyclists else None
+        action = self._select_action(game) if game is not None else None
+        if action is None:
+            return super().next_cyclist(game)
+        assert isinstance(action, SelectCyclistAction)
+        return action.cyclist
 
     def choose_card(
             self,
             cyclist: Cyclist,
             game: Optional['Game'] = None,
         ) -> Optional[Card]:
-        if not cyclist.hand or len(cyclist.hand) < self.hand_size:
-            LOGGER.warning('%s does not have enough cards on hand')
-            return None
-
-        observation = FRData.from_game(game, self).to_array()
-        hand = sorted(cyclist.hand)
-        number = self.agent.forward(observation)
-        return hand[number]
+        action = self._select_action(game) if game is not None else None
+        if action is None:
+            return super().choose_card(cyclist, game)
+        assert isinstance(action, SelectCardAction)
+        assert action.cyclist == cyclist
+        return action.card
 
 
 class FREnv(Env):
@@ -261,9 +285,9 @@ class FREnv(Env):
     track: Track
     opponents: Tuple[Team, ...] = (Peloton(colors='red'), Muscle(colors='green'))
 
-    reward_range = (0, len(opponents))
-    action_space = Discrete(AgentTeam.hand_size)
-    observation_space = Box(low=-1, high=77, shape=(512,))
+    reward_range = (-1, 1)
+    action_space = Discrete(len(FRAction))
+    observation_space = Box(low=-1, high=77, shape=(524,))
 
     def __init__(
             self,
@@ -277,17 +301,10 @@ class FREnv(Env):
         self._track = track
 
     def _play_others(self) -> None:
-        while self.game.phase is Phase.START:
-            self.game.play_action()
-
         while True:
             teams = [team for team in self.game.active_teams if team != self.team]
             if not teams:
-                if not self.game.active_teams or all(
-                        isinstance(a, SelectCardAction)
-                        for a in self.game.available_actions(self.team)):
-                    return
-                teams = [self.team]
+                return
             team = choice(teams)
             team_action = team.select_action(self.game)
             assert team_action is not None
@@ -298,36 +315,37 @@ class FREnv(Env):
         teams = (self.team,) + self.opponents
         self.game = Game(track=self.track, teams=teams)
 
-        self._play_others()
+        while self.game.phase is Phase.START:
+            self.game.play_action()
         assert self.game.phase is Phase.RACE
+        self._play_others()
 
         LOGGER.debug(self.game)
 
         return self.observation
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
-        assert 0 <= action < self.action_space.n
         assert not self.game.finished
         assert self.game.phase is Phase.RACE
         assert self.game.active_teams == (self.team,)
-        cyclist = self.team.cyclist_to_select_card
-        assert cyclist is not None
-        assert cyclist.hand
-        assert len(cyclist.hand) == self.action_space.n
 
-        hand = sorted(cyclist.hand)
-        card = hand[action]
-        act = SelectCardAction(cyclist=cyclist, card=card)
-        self.game.take_action(self.team, act)
+        try:
+            act = _to_action(action, self.team)
+            assert act is not None
+            self.game.take_action(self.team, act)
+
+        except Exception as exp:
+            LOGGER.debug('encountered exception: %r', exp, exc_info=True)
+            LOGGER.debug(
+                'action: %d / %s / %s, available actions: %s',
+                action, FR_ACTIONS[action], act, self.game.available_actions(self.team))
+            return self.observation, -1, True, {}
 
         if self.game.finished:
             winner = self.game.winner
             assert winner is not None
             assert winner.team is not None
-            teams = self.game.sorted_teams
-            assert teams[0] == winner.team
-            position = teams.index(self.team) + 1
-            reward = len(self.game.teams) - position
+            reward = float(winner.team == self.team)
             return self.observation, reward, True, {}
 
         self._play_others()

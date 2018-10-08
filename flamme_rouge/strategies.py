@@ -36,7 +36,7 @@ class Human(Regular):
         kwargs['exhaustion'] = True
         super().__init__(**kwargs)
 
-    def _select_cyclist(self, cyclists: Optional[Sequence[Cyclist]] = None) -> Cyclist:
+    def _select_cyclist(self, cyclists: Optional[Sequence[Cyclist]] = None) -> Optional[Cyclist]:
         cyclists = self.cyclists if cyclists is None else cyclists
 
         if len(cyclists) < 2:
@@ -66,6 +66,8 @@ class Human(Regular):
 
         cyclists = [c for c in self.cyclists if c.section is None]
         cyclist = self._select_cyclist(cyclists)
+
+        assert cyclist is not None
 
         positions = [section.position for section in game.track.available_start]
         question = inquirer.List(
@@ -113,7 +115,7 @@ class Human(Regular):
 class Peloton(Team):
     ''' peloton team '''
 
-    attack_deck: Tuple[Card] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
+    attack_deck: Tuple[Card, ...] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
     curr_card: Optional[Card]
     _starting_positions: Optional[Dict[Cyclist, 'Section']]
 
@@ -157,6 +159,7 @@ class Peloton(Team):
             game: Optional['Game'] = None,
         ) -> Optional[Card]:
         if cyclist is self.dummy:
+            assert self.curr_card is not None
             card = self.curr_card
             cyclist.hand = [card]
             self.curr_card = None
@@ -169,7 +172,7 @@ class Peloton(Team):
 class Muscle(Team):
     ''' muscle team '''
 
-    muscle_deck: Tuple[Card] = Sprinteur.initial_deck + (Card.CARD_5,)
+    muscle_deck: Tuple[Card, ...] = Sprinteur.initial_deck + (Card.CARD_5,)
     _starting_positions: Optional[Dict[Cyclist, 'Section']]
 
     def __init__(self, name: Optional[str] = None, **kwargs) -> None:
