@@ -1,9 +1,0 @@
-colorama
-dataclasses
-gym
-inquirer
-keras
-keras-rl
-numpy
-https://github.com/lakshayg/tensorflow-build/releases/download/tf1.9.0-macos-py27-py36/tensorflow-1.9.0-cp36-cp36m-macosx_10_13_x86_64.whl
-termcolor
