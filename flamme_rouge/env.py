@@ -3,10 +3,12 @@
 ''' RL environment '''
 
 import logging
+import math
 import os
 import sys
 
 from collections import Counter
+from collections.abc import Mapping
 from enum import Enum
 from functools import partial
 from random import choice
@@ -15,7 +17,7 @@ from dataclasses import astuple, dataclass, is_dataclass
 
 import numpy as np
 
-from gym.spaces import Box, Discrete
+from gym.spaces import Box, Dict, Discrete, MultiBinary
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Flatten
 from keras.optimizers import Adam
@@ -49,6 +51,28 @@ class FRAction(Enum):
     SELECT_9 = partial(SelectCardAction, card=Card.CARD_9)
     SELECT_EXHAUSTION = partial(SelectCardAction, card=Card.EXHAUSTION)
     SELECT_ATTACK = partial(SelectCardAction, card=Card.ATTACK)
+
+    @classmethod
+    def from_action(cls, action: Action) -> Optional['FRAction']:
+        ''' convert an Action to an FRAction, if possible '''
+
+        if isinstance(action, SelectCyclistAction):
+            return (
+                cls.CYCLIST_ROULEUR if isinstance(action.cyclist, Rouleur)
+                else cls.CYCLIST_SPRINTEUR if isinstance(action.cyclist, Sprinteur)
+                else None
+            )
+
+        if not isinstance(action, SelectCardAction):
+            return None
+
+        card = action.card
+
+        for act in cls:
+            if isinstance(act.value, partial) and act.value.keywords.get('card') == card:
+                return act
+
+        return None
 
 FR_ACTIONS: Tuple[FRAction, ...] = tuple(FRAction)
 
@@ -275,6 +299,32 @@ class AgentTeam(Regular):
         return action.card
 
 
+class AvailableActions(Dict):
+    ''' space used to restrict the available actions at each step '''
+
+    def __init__(self, nb_actions, space):
+        spaces = {
+            'actions': MultiBinary(nb_actions),
+            'values': space,
+        }
+        super().__init__(spaces=spaces)
+        self.shape = getattr(space, 'shape', None)
+
+    def sample(self):
+        return self.spaces['values'].sample()
+
+    def contains(self, x):
+        if isinstance(x, Mapping):
+            return super().contains(dict(x))
+        return self.spaces['values'].contains(x)
+
+    def __contains__(self, value):
+        return self.contains(value)
+
+    def __getattr__(self, name):
+        return getattr(self.spaces['values'], name)
+
+
 class FREnv(Env):
     ''' Flamme Rouge Environment '''
 
@@ -285,9 +335,12 @@ class FREnv(Env):
     track: Track
     opponents: Tuple[Team, ...] = (Peloton(colors='red'), Muscle(colors='green'))
 
-    reward_range = (-1, 1)
+    reward_range = (-1, len(opponents))
     action_space = Discrete(len(FRAction))
-    observation_space = Box(low=-1, high=77, shape=(524,))
+    observation_space = AvailableActions(
+        nb_actions=action_space.n,
+        space=Box(low=-1, high=77, shape=(524,)),
+    )
 
     def __init__(
             self,
@@ -345,7 +398,10 @@ class FREnv(Env):
             winner = self.game.winner
             assert winner is not None
             assert winner.team is not None
-            reward = float(winner.team == self.team)
+            teams = self.game.sorted_teams
+            assert teams[0] == winner.team
+            position = teams.index(self.team) + 1
+            reward = len(self.game.teams) - position
             return self.observation, reward, True, {}
 
         self._play_others()
@@ -370,7 +426,40 @@ class FREnv(Env):
     @property
     def observation(self):
         ''' game observation '''
-        return FRData.from_game(self.game, self.team).to_array()
+        available = frozenset(filter(None, map(
+            FRAction.from_action, self.game.available_actions(self.team))))
+        return {
+            'actions': np.array([a in available for a in FR_ACTIONS], dtype=bool),
+            'values': FRData.from_game(self.game, self.team).to_array(),
+        }
+
+
+class AvailableAgent(DQNAgent):
+    ''' agent that respects the available actions '''
+
+    logger = LOGGER
+
+    def process_state_batch(self, batch):
+        self.logger.debug('AvailableAgent.process_state_batch(%r)', batch)
+        batch = [
+            [obs.get('values', obs) if isinstance(obs, Mapping) else obs for obs in state]
+            for state in batch]
+        return super().process_state_batch(batch)
+
+    def compute_q_values(self, state):
+        result = super().compute_q_values(state)
+
+        obs = state[-1]
+        actions = obs.get('actions') if isinstance(obs, Mapping) else None
+        if actions is not None:
+            assert len(result) == len(actions)
+            for i, available in enumerate(actions):
+                if not available:
+                    result[i] = -math.inf
+
+        self.logger.debug('AvailableAgent.compute_q_values(%r) = %r', state, result)
+
+        return result
 
 
 def _main():
@@ -404,7 +493,7 @@ def _main():
         value_test=0,
         nb_steps=nb_steps // 2,
     ) # BoltzmannQPolicy()
-    agent = DQNAgent(
+    agent = AvailableAgent(
         model=model,
         gamma=.99,
         nb_actions=nb_actions,
