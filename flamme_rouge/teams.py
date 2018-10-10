@@ -181,15 +181,15 @@ class Team:
 
     def __init__(
             self,
-            name: str,
             cyclists: Iterable[Cyclist],
+            name: Optional[str] = None,
             exhaustion: bool = True,
             order: float = math.inf,
             colors: Color = None,
             handicap: Union[int, Sequence[int]] = 0,
             hand_size: Optional[int] = None,
         ) -> None:
-        self.name = name
+        self.name = name or self.__class__.__name__
         self.cyclists = tuple(cyclists)
         self.exhaustion = exhaustion
         self.order = order

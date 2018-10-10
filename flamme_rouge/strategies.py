@@ -29,6 +29,97 @@ def _first_available(
     return dict(zip(cyclists, available))
 
 
+class Peloton(Team):
+    ''' peloton team '''
+
+    attack_deck: Tuple[Card, ...] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
+    curr_card: Optional[Card]
+    _starting_positions: Optional[Dict[Cyclist, 'Section']]
+
+    def __init__(self, **kwargs) -> None:
+        self.leader = Rouleur(team=self, deck=self.attack_deck)
+        self.dummy = Rouleur(team=self, deck=())
+
+        kwargs['cyclists'] = (self.leader, self.dummy)
+        kwargs['exhaustion'] = False
+        kwargs['order'] = 0
+        kwargs['hand_size'] = 1
+
+        super().__init__(**kwargs)
+
+    def reset(self) -> 'Peloton':
+        super().reset()
+        self.curr_card = None
+        self._starting_positions = None
+        return self
+
+    def starting_position(
+            self,
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
+        if self._starting_positions is None:
+            self._starting_positions = _first_available(game, self.cyclists)
+        for cyclist in self.cyclists:
+            if cyclist.section is None:
+                return cyclist, self._starting_positions[cyclist]
+        raise RuntimeError('all cyclists have been placed')
+
+    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
+        return (
+            self.leader if self.leader.curr_card is None
+            else self.dummy if self.dummy.curr_card is None
+            else None)
+
+    def choose_card(
+            self,
+            cyclist: Cyclist,
+            game: Optional['Game'] = None,
+        ) -> Optional[Card]:
+        if cyclist is self.dummy:
+            assert self.curr_card is not None
+            card = self.curr_card
+            cyclist.hand = [card]
+            self.curr_card = None
+            return card
+
+        self.curr_card = super().choose_card(cyclist, game)
+        return self.curr_card
+
+
+class Muscle(Team):
+    ''' muscle team '''
+
+    muscle_deck: Tuple[Card, ...] = Sprinteur.initial_deck + (Card.CARD_5,)
+    _starting_positions: Optional[Dict[Cyclist, 'Section']]
+
+    def __init__(self, **kwargs) -> None:
+        kwargs['cyclists'] = (Sprinteur(team=self, deck=self.muscle_deck), Rouleur(team=self))
+        kwargs['exhaustion'] = False
+        kwargs['order'] = 1
+        kwargs['hand_size'] = 1
+
+        self._starting_positions = None
+
+        super().__init__(**kwargs)
+
+    def reset(self) -> 'Muscle':
+        super().reset()
+        self._starting_positions = None
+        return self
+
+    def starting_position(
+            self,
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
+        if self._starting_positions is None:
+            self._starting_positions = _first_available(
+                game, self.cyclists, lambda x: not isinstance(x, Sprinteur))
+        for cyclist in self.cyclists:
+            if cyclist.section is None:
+                return cyclist, self._starting_positions[cyclist]
+        raise RuntimeError('all cyclists have been placed')
+
+
 class Human(Regular):
     ''' human input '''
 
@@ -112,92 +203,15 @@ class Human(Regular):
         return answer['card']
 
 
-class Peloton(Team):
-    ''' peloton team '''
-
-    attack_deck: Tuple[Card, ...] = Rouleur.initial_deck + (Card.ATTACK, Card.ATTACK)
-    curr_card: Optional[Card]
-    _starting_positions: Optional[Dict[Cyclist, 'Section']]
-
-    def __init__(self, name: Optional[str] = None, **kwargs) -> None:
-        self.leader = Rouleur(team=self, deck=self.attack_deck)
-        self.dummy = Rouleur(team=self, deck=())
-
-        kwargs['cyclists'] = (self.leader, self.dummy)
-        kwargs['exhaustion'] = False
-        kwargs['order'] = 0
-        kwargs['hand_size'] = 1
-
-        super().__init__(name=name or 'Peloton', **kwargs)
-
-    def reset(self) -> 'Peloton':
-        super().reset()
-        self.curr_card = None
-        self._starting_positions = None
-        return self
-
-    def starting_position(
-            self,
-            game: 'Game',
-        ) -> Tuple[Cyclist, 'Section']:
-        if self._starting_positions is None:
-            self._starting_positions = _first_available(game, self.cyclists)
-        for cyclist in self.cyclists:
-            if cyclist.section is None:
-                return cyclist, self._starting_positions[cyclist]
-        raise RuntimeError('all cyclists have been placed')
-
-    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
-        return (
-            self.leader if self.leader.curr_card is None
-            else self.dummy if self.dummy.curr_card is None
-            else None)
+class Simple(Regular):
+    ''' always go for the highest card '''
 
     def choose_card(
             self,
             cyclist: Cyclist,
             game: Optional['Game'] = None,
         ) -> Optional[Card]:
-        if cyclist is self.dummy:
-            assert self.curr_card is not None
-            card = self.curr_card
-            cyclist.hand = [card]
-            self.curr_card = None
-            return card
+        if not cyclist.hand:
+            return None
 
-        self.curr_card = super().choose_card(cyclist, game)
-        return self.curr_card
-
-
-class Muscle(Team):
-    ''' muscle team '''
-
-    muscle_deck: Tuple[Card, ...] = Sprinteur.initial_deck + (Card.CARD_5,)
-    _starting_positions: Optional[Dict[Cyclist, 'Section']]
-
-    def __init__(self, name: Optional[str] = None, **kwargs) -> None:
-        kwargs['cyclists'] = (Sprinteur(team=self, deck=self.muscle_deck), Rouleur(team=self))
-        kwargs['exhaustion'] = False
-        kwargs['order'] = 1
-        kwargs['hand_size'] = 1
-
-        self._starting_positions = None
-
-        super().__init__(name=name or 'Muscle', **kwargs)
-
-    def reset(self) -> 'Muscle':
-        super().reset()
-        self._starting_positions = None
-        return self
-
-    def starting_position(
-            self,
-            game: 'Game',
-        ) -> Tuple[Cyclist, 'Section']:
-        if self._starting_positions is None:
-            self._starting_positions = _first_available(
-                game, self.cyclists, lambda x: not isinstance(x, Sprinteur))
-        for cyclist in self.cyclists:
-            if cyclist.section is None:
-                return cyclist, self._starting_positions[cyclist]
-        raise RuntimeError('all cyclists have been placed')
+        return sorted(cyclist.hand)[-1]

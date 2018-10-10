@@ -29,7 +29,7 @@ from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy # BoltzmannQPoli
 from .actions import Action, SelectCardAction, SelectCyclistAction
 from .cards import Card
 from .core import Game, Phase
-from .strategies import Muscle, Peloton
+from .strategies import Muscle, Peloton, Simple
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
 from .tracks import ALL_TRACKS, Section, Track
 
@@ -333,7 +333,11 @@ class FREnv(Env):
     game: Game
     _track: Optional[Track]
     track: Track
-    opponents: Tuple[Team, ...] = (Peloton(colors='red'), Muscle(colors='green'))
+    opponents: Tuple[Team, ...] = (
+        Peloton(colors='red'),
+        Muscle(colors='green'),
+        Simple(colors='black'),
+    )
 
     reward_range = (-1, len(opponents))
     action_space = Discrete(len(FRAction))
@@ -495,7 +499,7 @@ def _main():
     ) # BoltzmannQPolicy()
     agent = AvailableAgent(
         model=model,
-        gamma=.99,
+        gamma=.9999,
         nb_actions=nb_actions,
         memory=memory,
         nb_steps_warmup=50,
