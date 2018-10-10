@@ -29,7 +29,7 @@ from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy # BoltzmannQPoli
 from .actions import Action, SelectCardAction, SelectCyclistAction
 from .cards import Card
 from .core import Game, Phase
-from .strategies import Muscle, Peloton, Simple
+from .strategies import Heuristic, Muscle, Peloton # Simple
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
 from .tracks import ALL_TRACKS, Section, Track
 
@@ -336,7 +336,8 @@ class FREnv(Env):
     opponents: Tuple[Team, ...] = (
         Peloton(colors='red'),
         Muscle(colors='green'),
-        Simple(colors='black'),
+        # Simple(colors='black'),
+        Heuristic(colors='white'),
     )
 
     reward_range = (-1, len(opponents))
@@ -474,7 +475,7 @@ def _main():
     )
 
     nb_actions = FREnv.action_space.n
-    nb_steps = 100_000
+    nb_steps = 1_000_000
 
     model = Sequential()
     model.add(Flatten(input_shape=(1,) + FREnv.observation_space.shape))

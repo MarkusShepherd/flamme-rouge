@@ -206,6 +206,16 @@ class Human(Regular):
 class Simple(Regular):
     ''' always go for the highest card '''
 
+    def starting_position(
+            self,
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
+        assert game.track.available_start
+        cyclists = sorted(
+            (c for c in self.cyclists if c.section is None), key=lambda c: isinstance(c, Rouleur))
+        assert cyclists
+        return cyclists[0], game.track.available_start[-1]
+
     def choose_card(
             self,
             cyclist: Cyclist,
@@ -213,5 +223,46 @@ class Simple(Regular):
         ) -> Optional[Card]:
         if not cyclist.hand:
             return None
-
         return sorted(cyclist.hand)[-1]
+
+
+class Heuristic(Regular):
+    ''' try to be smart about it '''
+
+    def starting_position(
+            self,
+            game: 'Game',
+        ) -> Tuple[Cyclist, 'Section']:
+        assert game.track.available_start
+        cyclists = sorted(
+            (c for c in self.cyclists if c.section is None), key=lambda c: isinstance(c, Rouleur))
+        assert cyclists
+        return cyclists[0], game.track.available_start[-1]
+
+    def next_cyclist(self, game: Optional['Game'] = None) -> Optional[Cyclist]:
+        cyclists = self.available_cyclists
+        return sorted(cyclists, key=lambda c: isinstance(c, Rouleur))[0] if cyclists else None
+
+    def choose_card(
+            self,
+            cyclist: Cyclist,
+            game: Optional['Game'] = None,
+        ) -> Optional[Card]:
+        if not game:
+            return super().choose_card(cyclist)
+
+        if not cyclist.hand or not cyclist.section:
+            return None
+
+        hand = sorted(cyclist.hand)
+        high_cards = cyclist.cards[-3:]
+        total = sum(card.value_front for card in high_cards)
+        to_go = game.track.finish - cyclist.section.position
+
+        if to_go <= total:
+            return hand[-1]
+
+        threshold = min(card.value_front for card in high_cards)
+        hand = [card for card in hand if card.value_front < threshold]
+
+        return hand[-1] if hand else sorted(cyclist.hand)[0]
