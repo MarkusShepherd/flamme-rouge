@@ -3,21 +3,21 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[requires]
+python_version = "3.6"
+
 [packages]
 colorama = "*"
 dataclasses = "*"
 gym = "*"
 inquirer = "*"
+Keras = "*"
 keras-rl = "*"
 numpy = "*"
-"286b296" = {file = "https://github.com/lakshayg/tensorflow-build/releases/download/tf1.9.0-macos-py27-py36/tensorflow-1.9.0-cp36-cp36m-macosx_10_13_x86_64.whl"}
+tensorflow = "*"
 termcolor = "*"
-Keras = "*"
 
 [dev-packages]
 ipython = "*"
-pylint = "*"
 mypy = "*"
-
-[requires]
-python_version = "3.6"
+pylint = "*"
