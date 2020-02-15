@@ -2,6 +2,7 @@
 
 ''' init '''
 
+from .__version__ import VERSION, __version__
 from .tracks import (
     AVENUE_CORSO_PASEO,
     FIRENZE_MILANO,

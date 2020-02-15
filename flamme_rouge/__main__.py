@@ -38,7 +38,9 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _main() -> None:
+def main() -> None:
+    '''CLI entry point.'''
+
     args = _parse_args()
 
     logging.basicConfig(
@@ -92,4 +94,4 @@ def _main() -> None:
 
 
 if __name__ == '__main__':
-    _main()
+    main()
