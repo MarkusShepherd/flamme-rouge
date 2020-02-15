@@ -14,7 +14,7 @@ from setuptools import find_packages, setup, Command
 
 # Package meta-data.
 NAME = "flamme-rouge"
-DESCRIPTION = "An implementation of TODO's game Flamme Rouge"
+DESCRIPTION = "An implementation of Asger Harding Granerud's game Flamme Rouge"
 KEYWORDS = (
     "flamme rouge",
     "game",
