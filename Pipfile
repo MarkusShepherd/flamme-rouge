@@ -7,17 +7,17 @@ name = "pypi"
 python_version = "3.7"
 
 [packages]
-colorama = "*"
-dataclasses = "*"
+colorama = {version = "*", sys_platform = "== 'win32'"}
 gym = "*"
 inquirer = "*"
-Keras = "*"
+keras = "*"
 keras-rl = "*"
 numpy = "*"
 tensorflow = "*"
 termcolor = "*"
 
 [dev-packages]
-ipython = "*"
+black = "==19.10b0"
 mypy = "*"
 pylint = "*"
+twine = "*"
