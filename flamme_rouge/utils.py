@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' util functions '''
+""" util functions """
 
 import logging
 
@@ -13,16 +13,16 @@ from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 
 LOGGER = logging.getLogger(__name__)
 
-Typed = TypeVar('Typed')
+Typed = TypeVar("Typed")
 
 
 def clear_list(items: Iterable[Optional[Typed]]) -> List[Typed]:
-    ''' return unique items in order of first ocurrence '''
+    """ return unique items in order of first ocurrence """
     return list(OrderedDict.fromkeys(i for i in items if i is not None))
 
 
 def window(iterable: Iterable[Typed], size: int = 2) -> Iterable[Tuple[Typed, ...]]:
-    ''' sliding window of an iterator '''
+    """ sliding window of an iterator """
 
     iterables = tee(iterable, size)
 
@@ -34,7 +34,7 @@ def window(iterable: Iterable[Typed], size: int = 2) -> Iterable[Tuple[Typed, ..
 
 
 def parse_int(string: Any, base: int = 10) -> Optional[int]:
-    ''' safely convert an object to int if possible, else return None '''
+    """ safely convert an object to int if possible, else return None """
 
     if isinstance(string, int):
         return string
@@ -55,12 +55,12 @@ def parse_int(string: Any, base: int = 10) -> Optional[int]:
 
 
 def input_int(
-        prompt: str,
-        base: int = 10,
-        lower: Optional[int] = None,
-        upper: Optional[int] = None,
-    ) -> int:
-    ''' prompt for an integer input until valid '''
+    prompt: str,
+    base: int = 10,
+    lower: Optional[int] = None,
+    upper: Optional[int] = None,
+) -> int:
+    """ prompt for an integer input until valid """
 
     while True:
         value = parse_int(input(prompt), base)
@@ -81,12 +81,12 @@ def input_int(
 
 @lru_cache(maxsize=128)
 def class_from_path(path: Any) -> Any:
-    ''' load an object from the dotted path '''
+    """ load an object from the dotted path """
 
     if not isinstance(path, str):
         return path
 
-    parts = path.split('.')
+    parts = path.split(".")
 
     try:
         if len(parts) == 1:
@@ -108,11 +108,11 @@ def class_from_path(path: Any) -> Any:
 
 
 class OrderedEnum(Enum):
-    ''' ordered enum '''
+    """ ordered enum """
 
     @property
     def value_comp(self) -> Any:
-        ''' the value used for comparison '''
+        """ the value used for comparison """
         return self.value
 
     # pylint: disable=comparison-with-callable

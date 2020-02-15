@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' core classes '''
+""" core classes """
 
 import logging
 
@@ -10,7 +10,12 @@ from random import choice, shuffle
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 from .actions import (
-    Action, RaceAction, SelectCardAction, SelectCyclistAction, SelectStartPositionAction)
+    Action,
+    RaceAction,
+    SelectCardAction,
+    SelectCyclistAction,
+    SelectStartPositionAction,
+)
 from .utils import clear_list
 
 if TYPE_CHECKING:
@@ -22,15 +27,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Phase(Enum):
-    ''' phases of a game '''
+    """ phases of a game """
 
     START = auto()
     RACE = auto()
     FINISH = auto()
 
     @property
-    def next_phase(self) -> 'Phase':
-        ''' phase after this '''
+    def next_phase(self) -> "Phase":
+        """ phase after this """
         return Phase(self.value + 1)
 
 
@@ -53,23 +58,19 @@ def _execute_card_action(action: SelectCardAction) -> None:
 
 
 class Game:
-    ''' Flamme Rouge game '''
+    """ Flamme Rouge game """
 
-    track: 'Track'
-    teams: Tuple['Team', ...]
+    track: "Track"
+    teams: Tuple["Team", ...]
     phase: Phase = Phase.START
     rounds_played: int = 0
 
-    def __init__(
-            self,
-            track: 'Track',
-            teams: Iterable['Team'],
-        ) -> None:
+    def __init__(self, track: "Track", teams: Iterable["Team"],) -> None:
         self.track = track
         self.reset(teams)
 
-    def reset(self, teams: Optional[Iterable['Team']] = None) -> 'Game':
-        ''' reset this game '''
+    def reset(self, teams: Optional[Iterable["Team"]] = None) -> "Game":
+        """ reset this game """
 
         self.track = self.track.reset()
         teams = teams if teams is not None else self.teams
@@ -81,24 +82,29 @@ class Game:
         self.rounds_played = 0
 
         LOGGER.debug(
-            'game phase: %s; rounds: %d; finished: %s; winner: %s; active: %s',
-            self.phase, self.rounds_played, self.finished, self.winner, self.active_teams)
+            "game phase: %s; rounds: %d; finished: %s; winner: %s; active: %s",
+            self.phase,
+            self.rounds_played,
+            self.finished,
+            self.winner,
+            self.active_teams,
+        )
 
         return self
 
     @property
     def finished(self) -> bool:
-        ''' inidicates if the game is finished '''
+        """ inidicates if the game is finished """
         return self.track.finished()
 
     @property
-    def winner(self) -> Optional['Cyclist']:
-        ''' winner of the game if any, else None '''
+    def winner(self) -> Optional["Cyclist"]:
+        """ winner of the game if any, else None """
         return self.track.leading if self.finished else None
 
     @property
-    def active_teams(self) -> Tuple['Team', ...]:
-        ''' currently active teams '''
+    def active_teams(self) -> Tuple["Team", ...]:
+        """ currently active teams """
 
         if self.phase is Phase.FINISH:
             return ()
@@ -113,29 +119,33 @@ class Game:
         assert self.phase is Phase.RACE
 
         return tuple(
-            team for team in self.teams if any(c.curr_card is None for c in team.cyclists))
+            team
+            for team in self.teams
+            if any(c.curr_card is None for c in team.cyclists)
+        )
 
     @property
-    def sorted_teams(self) -> Tuple['Team', ...]:
-        ''' teams in race order '''
+    def sorted_teams(self) -> Tuple["Team", ...]:
+        """ teams in race order """
         return tuple(clear_list(c.team for c in self.track.cyclists()))
 
     @property
-    def cyclists(self) -> Tuple['Cyclist', ...]:
-        ''' all cyclists in the race '''
+    def cyclists(self) -> Tuple["Cyclist", ...]:
+        """ all cyclists in the race """
         return tuple(c for team in self.teams for c in team.cyclists)
 
-    def _available_actions_start(self, team: 'Team') -> Tuple[Action, ...]:
+    def _available_actions_start(self, team: "Team") -> Tuple[Action, ...]:
         placed = frozenset(self.track.cyclists())
         cyclists = (c for c in team.cyclists if c not in placed)
         sections = self.track.available_start
 
         return tuple(
             SelectStartPositionAction(cyclist=c, position=s.position)
-            for c, s in product(cyclists, sections))
+            for c, s in product(cyclists, sections)
+        )
 
-    def available_actions(self, team: 'Team') -> Tuple[Action, ...]:
-        ''' available actions to that team '''
+    def available_actions(self, team: "Team") -> Tuple[Action, ...]:
+        """ available actions to that team """
 
         if team not in self.active_teams:
             return ()
@@ -150,8 +160,8 @@ class Game:
 
         return ()
 
-    def take_action(self, team: 'Team', action: Action) -> Phase:
-        ''' a team takes an action '''
+    def take_action(self, team: "Team", action: Action) -> Phase:
+        """ a team takes an action """
 
         assert team in self.active_teams
         assert action in self.available_actions(team)
@@ -166,7 +176,7 @@ class Game:
             self._execute_race_action(action)
 
         else:
-            raise RuntimeError(f'no action available in phase <{self.phase}>')
+            raise RuntimeError(f"no action available in phase <{self.phase}>")
 
         if self.finished:
             self.phase = Phase.FINISH
@@ -189,7 +199,7 @@ class Game:
         elif isinstance(action, SelectCardAction):
             _execute_card_action(action)
         else:
-            raise ValueError(f'invalid action {action}')
+            raise ValueError(f"invalid action {action}")
 
         if any(c.curr_card is None for c in self.cyclists):
             return
@@ -200,19 +210,22 @@ class Game:
             actual = self.track.move_cyclist(cyclist, cyclist.curr_card, min_speed=True)
             cyclist.curr_card = None
             LOGGER.info(
-                '🚴 <%s> selected card %s and moved %d section(s)',
-                cyclist, planned, actual)
+                "🚴 <%s> selected card %s and moved %d section(s)",
+                cyclist,
+                planned,
+                actual,
+            )
 
         self.track.do_slipstream()
         self.track.do_exhaustion()
 
         self.rounds_played += 1
 
-        LOGGER.info('after %d rounds:', self.rounds_played)
+        LOGGER.info("after %d rounds:", self.rounds_played)
         LOGGER.info(self)
 
     def play_action(self) -> Phase:
-        ''' play an action '''
+        """ play an action """
 
         teams = self.active_teams
 
@@ -228,7 +241,7 @@ class Game:
         return self.phase
 
     def play(self) -> None:
-        ''' play the game '''
+        """ play the game """
 
         while not self.finished:
             self.play_action()

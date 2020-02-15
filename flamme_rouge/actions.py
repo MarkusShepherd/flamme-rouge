@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' actions '''
+""" actions """
 
 from typing import TYPE_CHECKING
 from dataclasses import dataclass
@@ -14,27 +14,30 @@ if TYPE_CHECKING:
 # pylint: disable=too-few-public-methods
 @dataclass(frozen=True)
 class Action:
-    ''' an action in Flamme Rouge '''
-    cyclist: 'Cyclist'
+    """ an action in Flamme Rouge """
+
+    cyclist: "Cyclist"
 
 
 @dataclass(frozen=True)
 class SelectStartPositionAction(Action):
-    ''' select starting position '''
+    """ select starting position """
+
     position: int
 
 
 @dataclass(frozen=True)
 class RaceAction(Action):
-    ''' an action during the race phase '''
+    """ an action during the race phase """
 
 
 @dataclass(frozen=True)
 class SelectCyclistAction(RaceAction):
-    ''' select a cyclist to race '''
+    """ select a cyclist to race """
 
 
 @dataclass(frozen=True)
 class SelectCardAction(RaceAction):
-    ''' select a card from cyclist's hand '''
-    card: 'Card'
+    """ select a card from cyclist's hand """
+
+    card: "Card"

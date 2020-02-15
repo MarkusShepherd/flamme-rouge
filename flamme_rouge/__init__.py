@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' init '''
+""" init """
 
 from .__version__ import VERSION, __version__
 from .tracks import (
@@ -19,6 +19,7 @@ from .tracks import (
 
 try:
     from colorama import init
+
     init()
 
 except Exception:

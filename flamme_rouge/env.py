@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' RL environment '''
+""" RL environment """
 
 import logging
 import math
@@ -24,21 +24,22 @@ from keras.optimizers import Adam
 from rl.agents.dqn import DQNAgent
 from rl.core import Agent, Env
 from rl.memory import SequentialMemory
-from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy # BoltzmannQPolicy
+from rl.policy import LinearAnnealedPolicy, MaxBoltzmannQPolicy  # BoltzmannQPolicy
 
 from .actions import Action, SelectCardAction, SelectCyclistAction
 from .cards import Card
 from .core import Game, Phase
-from .strategies import Heuristic, Muscle, Peloton # Simple
+from .strategies import Heuristic, Muscle, Peloton  # Simple
 from .teams import Cyclist, Regular, Rouleur, Sprinteur, Team
 from .tracks import ALL_TRACKS, Section, Track
 
 LOGGER = logging.getLogger(__name__)
-WEIGHTS_FILE = 'fr_weights.h5f'
+WEIGHTS_FILE = "fr_weights.h5f"
 
 
 class FRAction(Enum):
-    ''' enum of actions '''
+    """ enum of actions """
+
     CYCLIST_ROULEUR = Rouleur
     CYCLIST_SPRINTEUR = Sprinteur
     SELECT_2 = partial(SelectCardAction, card=Card.CARD_2)
@@ -53,13 +54,15 @@ class FRAction(Enum):
     SELECT_ATTACK = partial(SelectCardAction, card=Card.ATTACK)
 
     @classmethod
-    def from_action(cls, action: Action) -> Optional['FRAction']:
-        ''' convert an Action to an FRAction, if possible '''
+    def from_action(cls, action: Action) -> Optional["FRAction"]:
+        """ convert an Action to an FRAction, if possible """
 
         if isinstance(action, SelectCyclistAction):
             return (
-                cls.CYCLIST_ROULEUR if isinstance(action.cyclist, Rouleur)
-                else cls.CYCLIST_SPRINTEUR if isinstance(action.cyclist, Sprinteur)
+                cls.CYCLIST_ROULEUR
+                if isinstance(action.cyclist, Rouleur)
+                else cls.CYCLIST_SPRINTEUR
+                if isinstance(action.cyclist, Sprinteur)
                 else None
             )
 
@@ -69,10 +72,14 @@ class FRAction(Enum):
         card = action.card
 
         for act in cls:
-            if isinstance(act.value, partial) and act.value.keywords.get('card') == card:
+            if (
+                isinstance(act.value, partial)
+                and act.value.keywords.get("card") == card
+            ):
                 return act
 
         return None
+
 
 FR_ACTIONS: Tuple[FRAction, ...] = tuple(FRAction)
 
@@ -82,7 +89,7 @@ def _flatten(data: Any) -> Generator:
         yield from _flatten(astuple(data))
         return
 
-    if hasattr(data, '__iter__') and not isinstance(data, (bytes, str)):
+    if hasattr(data, "__iter__") and not isinstance(data, (bytes, str)):
         for item in data:
             yield from _flatten(item)
         return
@@ -91,15 +98,16 @@ def _flatten(data: Any) -> Generator:
 
 
 class ArrayData:
-    ''' array data '''
+    """ array data """
+
     def to_array(self, dtype=float) -> np.ndarray:
-        ''' as data array '''
+        """ as data array """
         return np.array(tuple(_flatten(self)), dtype=dtype)
 
 
 @dataclass
 class FRSectionData(ArrayData):
-    ''' section data '''
+    """ section data """
 
     lanes: int
     slipstream: bool
@@ -107,8 +115,8 @@ class FRSectionData(ArrayData):
     max_speed: int
 
     @classmethod
-    def from_section(cls, section: Section) -> 'FRSectionData':
-        ''' data from section '''
+    def from_section(cls, section: Section) -> "FRSectionData":
+        """ data from section """
         return cls(
             lanes=section.lanes,
             slipstream=section.slipstream,
@@ -124,7 +132,7 @@ def _count_cards(cards: Iterable[Card]) -> Tuple[int, ...]:
 
 @dataclass
 class FROwnCyclistData(ArrayData):
-    ''' own cyclist data '''
+    """ own cyclist data """
 
     exhaustion: bool
     position: int
@@ -136,8 +144,8 @@ class FROwnCyclistData(ArrayData):
     curr_card: int
 
     @classmethod
-    def from_cyclist(cls, cyclist: Cyclist) -> 'FROwnCyclistData':
-        ''' data from cyclist '''
+    def from_cyclist(cls, cyclist: Cyclist) -> "FROwnCyclistData":
+        """ data from cyclist """
         assert cyclist.team is not None
         assert cyclist.section is not None
         lane = cyclist.section.lane(cyclist)
@@ -157,7 +165,7 @@ class FROwnCyclistData(ArrayData):
 
 @dataclass
 class FROtherCyclistData(ArrayData):
-    ''' other cyclist data '''
+    """ other cyclist data """
 
     playing: bool
     exhaustion: bool
@@ -166,8 +174,8 @@ class FROtherCyclistData(ArrayData):
     cards: Tuple[int, ...]
 
     @classmethod
-    def from_cyclist(cls, cyclist: Optional[Cyclist]) -> 'FROtherCyclistData':
-        ''' data from cyclist '''
+    def from_cyclist(cls, cyclist: Optional[Cyclist]) -> "FROtherCyclistData":
+        """ data from cyclist """
 
         if cyclist is None:
             return cls(
@@ -194,22 +202,25 @@ class FROtherCyclistData(ArrayData):
 
 @dataclass(frozen=True)
 class FRData(ArrayData):
-    ''' complete game data '''
+    """ complete game data """
 
     start: int
     finish: int
     sections: Tuple[FRSectionData, ...]
-    own_cyclists: Tuple[FROwnCyclistData, ...] # expected len: 2
-    other_cyclists: Tuple[FROtherCyclistData, ...] # expected len: 10
+    own_cyclists: Tuple[FROwnCyclistData, ...]  # expected len: 2
+    other_cyclists: Tuple[FROtherCyclistData, ...]  # expected len: 10
 
     @classmethod
-    def from_game(cls, game: Game, team: Team) -> 'FRData':
-        ''' data from cyclist '''
+    def from_game(cls, game: Game, team: Team) -> "FRData":
+        """ data from cyclist """
 
         own_cyclists = sorted(
-            team.sorted_cyclists, key=lambda c: (c.curr_card is not None, c.hand is None))
+            team.sorted_cyclists,
+            key=lambda c: (c.curr_card is not None, c.hand is None),
+        )
         other_cyclists: List[Optional[Cyclist]] = [
-            c for t in game.sorted_teams if t != team for c in t.sorted_cyclists]
+            c for t in game.sorted_teams if t != team for c in t.sorted_cyclists
+        ]
         other_cyclists += [None] * (10 - len(other_cyclists))
 
         return cls(
@@ -226,7 +237,9 @@ def _to_action(number: int, team: Team) -> Optional[Action]:
 
     if action in (FRAction.CYCLIST_SPRINTEUR, FRAction.CYCLIST_ROULEUR):
         ctype = action.value
-        cyclist = next((c for c in team.available_cyclists if isinstance(c, ctype)), None)
+        cyclist = next(
+            (c for c in team.available_cyclists if isinstance(c, ctype)), None
+        )
         return SelectCyclistAction(cyclist) if cyclist is not None else None
 
     cyclist = team.cyclist_to_select_card
@@ -240,29 +253,24 @@ def _to_action(number: int, team: Team) -> Optional[Action]:
 
 
 class AgentTeam(Regular):
-    ''' agent team '''
+    """ agent team """
 
     hand_size = 4
 
     def __init__(
-            self,
-            agent: Agent,
-            name: Optional[str] = None,
-            max_tries: int = 10,
-            **kwargs,
-        ) -> None:
-        kwargs['hand_size'] = AgentTeam.hand_size
-        super().__init__(name=name or 'Agent', **kwargs)
+        self, agent: Agent, name: Optional[str] = None, max_tries: int = 10, **kwargs,
+    ) -> None:
+        kwargs["hand_size"] = AgentTeam.hand_size
+        super().__init__(name=name or "Agent", **kwargs)
         self.agent = agent
         self.max_tries = max_tries
 
-    def starting_position(
-            self,
-            game: 'Game',
-        ) -> Tuple[Cyclist, 'Section']:
+    def starting_position(self, game: "Game",) -> Tuple[Cyclist, "Section"]:
         assert game.track.available_start
         cyclists = sorted(
-            (c for c in self.cyclists if c.section is None), key=lambda c: isinstance(c, Rouleur))
+            (c for c in self.cyclists if c.section is None),
+            key=lambda c: isinstance(c, Rouleur),
+        )
         assert cyclists
         return cyclists[0], game.track.available_start[-1]
 
@@ -275,7 +283,7 @@ class AgentTeam(Regular):
             if action in game.available_actions(self):
                 return action
 
-        LOGGER.warning('did not select an action after %d attempts', self.max_tries)
+        LOGGER.warning("did not select an action after %d attempts", self.max_tries)
 
         return None
 
@@ -287,10 +295,8 @@ class AgentTeam(Regular):
         return action.cyclist
 
     def choose_card(
-            self,
-            cyclist: Cyclist,
-            game: Optional['Game'] = None,
-        ) -> Optional[Card]:
+        self, cyclist: Cyclist, game: Optional["Game"] = None,
+    ) -> Optional[Card]:
         action = self._select_action(game) if game is not None else None
         if action is None:
             return super().choose_card(cyclist, game)
@@ -300,33 +306,33 @@ class AgentTeam(Regular):
 
 
 class AvailableActions(Dict):
-    ''' space used to restrict the available actions at each step '''
+    """ space used to restrict the available actions at each step """
 
     def __init__(self, nb_actions, space):
         spaces = {
-            'actions': MultiBinary(nb_actions),
-            'values': space,
+            "actions": MultiBinary(nb_actions),
+            "values": space,
         }
         super().__init__(spaces=spaces)
-        self.shape = getattr(space, 'shape', None)
+        self.shape = getattr(space, "shape", None)
 
     def sample(self):
-        return self.spaces['values'].sample()
+        return self.spaces["values"].sample()
 
     def contains(self, x):
         if isinstance(x, Mapping):
             return super().contains(dict(x))
-        return self.spaces['values'].contains(x)
+        return self.spaces["values"].contains(x)
 
     def __contains__(self, value):
         return self.contains(value)
 
     def __getattr__(self, name):
-        return getattr(self.spaces['values'], name)
+        return getattr(self.spaces["values"], name)
 
 
 class FREnv(Env):
-    ''' Flamme Rouge Environment '''
+    """ Flamme Rouge Environment """
 
     TRACKS = tuple(track for track in ALL_TRACKS if len(track) == 78)
 
@@ -334,25 +340,24 @@ class FREnv(Env):
     _track: Optional[Track]
     track: Track
     opponents: Tuple[Team, ...] = (
-        Peloton(colors='red'),
-        Muscle(colors='green'),
+        Peloton(colors="red"),
+        Muscle(colors="green"),
         # Simple(colors='black'),
-        Heuristic(colors='white'),
+        Heuristic(colors="white"),
     )
 
     reward_range = (-1, len(opponents))
     action_space = Discrete(len(FRAction))
     observation_space = AvailableActions(
-        nb_actions=action_space.n,
-        space=Box(low=-1, high=77, shape=(524,)),
+        nb_actions=action_space.n, space=Box(low=-1, high=77, shape=(524,)),
     )
 
     def __init__(
-            self,
-            team: Team,
-            opponents: Optional[Tuple[Team, ...]] = None,
-            track: Optional[Track] = None,
-        ) -> None:
+        self,
+        team: Team,
+        opponents: Optional[Tuple[Team, ...]] = None,
+        track: Optional[Track] = None,
+    ) -> None:
         super().__init__()
         self.team = team
         self.opponents = opponents or self.opponents
@@ -393,10 +398,14 @@ class FREnv(Env):
             self.game.take_action(self.team, act)
 
         except Exception as exp:
-            LOGGER.debug('encountered exception: %r', exp, exc_info=True)
+            LOGGER.debug("encountered exception: %r", exp, exc_info=True)
             LOGGER.debug(
-                'action: %d / %s / %s, available actions: %s',
-                action, FR_ACTIONS[action], act, self.game.available_actions(self.team))
+                "action: %d / %s / %s, available actions: %s",
+                action,
+                FR_ACTIONS[action],
+                act,
+                self.game.available_actions(self.team),
+            )
             return self.observation, -1, True, {}
 
         if self.game.finished:
@@ -416,7 +425,7 @@ class FREnv(Env):
         assert self.game.active_teams == (self.team,)
         return self.observation, 0, False, {}
 
-    def render(self, mode='human', close=False):
+    def render(self, mode="human", close=False):
         print(self.game)
 
     def close(self):
@@ -430,39 +439,46 @@ class FREnv(Env):
 
     @property
     def observation(self):
-        ''' game observation '''
-        available = frozenset(filter(None, map(
-            FRAction.from_action, self.game.available_actions(self.team))))
+        """ game observation """
+        available = frozenset(
+            filter(
+                None, map(FRAction.from_action, self.game.available_actions(self.team))
+            )
+        )
         return {
-            'actions': np.array([a in available for a in FR_ACTIONS], dtype=bool),
-            'values': FRData.from_game(self.game, self.team).to_array(),
+            "actions": np.array([a in available for a in FR_ACTIONS], dtype=bool),
+            "values": FRData.from_game(self.game, self.team).to_array(),
         }
 
 
 class AvailableAgent(DQNAgent):
-    ''' agent that respects the available actions '''
+    """ agent that respects the available actions """
 
     logger = LOGGER
 
     def process_state_batch(self, batch):
-        self.logger.debug('AvailableAgent.process_state_batch(%r)', batch)
+        self.logger.debug("AvailableAgent.process_state_batch(%r)", batch)
         batch = [
-            [obs.get('values', obs) if isinstance(obs, Mapping) else obs for obs in state]
-            for state in batch]
+            [
+                obs.get("values", obs) if isinstance(obs, Mapping) else obs
+                for obs in state
+            ]
+            for state in batch
+        ]
         return super().process_state_batch(batch)
 
     def compute_q_values(self, state):
         result = super().compute_q_values(state)
 
         obs = state[-1]
-        actions = obs.get('actions') if isinstance(obs, Mapping) else None
+        actions = obs.get("actions") if isinstance(obs, Mapping) else None
         if actions is not None:
             assert len(result) == len(actions)
             for i, available in enumerate(actions):
                 if not available:
                     result[i] = -math.inf
 
-        self.logger.debug('AvailableAgent.compute_q_values(%r) = %r', state, result)
+        self.logger.debug("AvailableAgent.compute_q_values(%r) = %r", state, result)
 
         return result
 
@@ -470,8 +486,8 @@ class AvailableAgent(DQNAgent):
 def _main():
     logging.basicConfig(
         stream=sys.stderr,
-        level=logging.WARNING, # if args.verbose > 0 else logging.INFO,
-        format='%(levelname)-4.4s [%(name)s:%(lineno)s] %(message)s',
+        level=logging.WARNING,  # if args.verbose > 0 else logging.INFO,
+        format="%(levelname)-4.4s [%(name)s:%(lineno)s] %(message)s",
     )
 
     nb_actions = FREnv.action_space.n
@@ -480,27 +496,27 @@ def _main():
     model = Sequential()
     model.add(Flatten(input_shape=(1,) + FREnv.observation_space.shape))
     model.add(Dense(nb_actions * 8))
-    model.add(Activation('relu'))
+    model.add(Activation("relu"))
     # model.add(Dense(nb_actions * 4))
     # model.add(Activation('relu'))
     model.add(Dense(nb_actions * 2))
-    model.add(Activation('relu'))
+    model.add(Activation("relu"))
     model.add(Dense(nb_actions))
-    model.add(Activation('linear'))
+    model.add(Activation("linear"))
     print(model.summary())
 
     memory = SequentialMemory(limit=50000, window_length=1)
     policy = LinearAnnealedPolicy(
         inner_policy=MaxBoltzmannQPolicy(),
-        attr='eps',
+        attr="eps",
         value_max=1,
-        value_min=.05,
+        value_min=0.05,
         value_test=0,
         nb_steps=nb_steps // 2,
-    ) # BoltzmannQPolicy()
+    )  # BoltzmannQPolicy()
     agent = AvailableAgent(
         model=model,
-        gamma=.9999,
+        gamma=0.9999,
         nb_actions=nb_actions,
         memory=memory,
         nb_steps_warmup=50,
@@ -508,13 +524,13 @@ def _main():
         policy=policy,
         test_policy=policy,
     )
-    agent.compile(Adam(lr=1e-3), metrics=['mae'])
+    agent.compile(Adam(lr=1e-3), metrics=["mae"])
 
     if os.path.isfile(WEIGHTS_FILE):
-        print(f'loading pre-trained weights from {WEIGHTS_FILE}')
+        print(f"loading pre-trained weights from {WEIGHTS_FILE}")
         agent.load_weights(WEIGHTS_FILE)
 
-    env = FREnv(team=AgentTeam(agent=agent, colors='blue'))
+    env = FREnv(team=AgentTeam(agent=agent, colors="blue"))
     agent.fit(env, nb_steps=nb_steps, visualize=False, verbose=1)
 
     agent.save_weights(WEIGHTS_FILE, overwrite=True)
@@ -522,5 +538,5 @@ def _main():
     agent.test(env, nb_episodes=1, visualize=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _main()

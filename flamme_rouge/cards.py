@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' cards '''
+""" cards """
 
 from typing import Tuple
 
@@ -8,7 +8,7 @@ from .utils import OrderedEnum
 
 
 class Card(OrderedEnum):
-    ''' cards in Flamme Rouge '''
+    """ cards in Flamme Rouge """
 
     CARD_2 = (2, 2, False)
     CARD_3 = (3, 3, False)
@@ -32,10 +32,13 @@ class Card(OrderedEnum):
             self not in (Card.EXHAUSTION, Card.ATTACK),
             self.value_front,
             self.value_behind,
-            not self.exhaustion)
+            not self.exhaustion,
+        )
 
     def __str__(self) -> str:
         string = (
-            str(self.value_front) if self.value_front == self.value_behind
-            else f'{self.value_front}/{self.value_behind}')
-        return f'{string}E' if self.exhaustion else string
+            str(self.value_front)
+            if self.value_front == self.value_behind
+            else f"{self.value_front}/{self.value_behind}"
+        )
+        return f"{string}E" if self.exhaustion else string
